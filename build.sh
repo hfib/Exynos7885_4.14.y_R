@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Variables
 DIR=`readlink -f .`;
 PARENT_DIR=`readlink -f ${DIR}/..`;
@@ -24,6 +26,13 @@ STD=`echo -e "\033[0m"`		# Text Clear
 # Functions
 pause(){
   read -p "${RED}$2${STD}Press ${BLUE}[Enter]${STD} key to $1..." fackEnterKey
+}
+
+function trap_ctrlc ()
+{
+    # exit shell script with error code 2
+    # if omitted, shell script will continue execution
+    exit 2
 }
 
 variant(){
@@ -71,23 +80,22 @@ clean(){
   make mrproper
   [ -d "out" ] && rm -rf out
   echo "${GREEN}***** Cleaning Done *****${STD}";
-  pause 'continue'
 }
 
 build(){
+  echo "${GREEN}***** Cleaning in Progress *****${STD}";
+  make clean
+  make mrproper
+  [ -d "out" ] && rm -rf out
+
   echo "${GREEN}***** Compiling kernel *****${STD}"
   [ ! -d "out" ] && mkdir out
   make -j$(nproc) -C $(pwd) O=$(pwd)/out $KERNEL_MAKE_ENV exynos9610-m31snsxx_defconfig
-  make -j$(nproc) -C $(pwd) O=$(pwd)/out $KERNEL_MAKE_ENV
+  make -j$(nproc) -C $(pwd) O=$(pwd)/out $KERNEL_MAKE_ENV | tee log.txt
 
   [ -e out/arch/arm64/boot/Image.gz ] && cp out/arch/arm64/boot/Image.gz $(pwd)/out/Image.gz
   if [ -e out/arch/arm64/boot/Image ]; then
     cp out/arch/arm64/boot/Image $(pwd)/out/Image
-
-    echo "${GREEN}***** Ready to Roar *****${STD}";
-    pause 'continue'
-  else
-    pause 'return to Main menu' 'Kernel STUCK in BUILD!, '
   fi
 }
 
@@ -150,12 +158,8 @@ read_options(){
   esac
 }
 
-# Trap CTRL+C, CTRL+Z and quit singles
-trap '' SIGINT SIGQUIT SIGTSTP
+# initialise trap to call trap_ctrlc function
+# when signal 2 (SIGINT) is received
+trap "trap_ctrlc" 2
 
-# Step # Main logic - infinite loop
-while true
-do
-  show_menus
-  read_options
-done
+build
