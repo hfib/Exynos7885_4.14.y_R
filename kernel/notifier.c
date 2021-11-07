@@ -6,6 +6,8 @@
 #include <linux/vmalloc.h>
 #include <linux/reboot.h>
 
+#include <linux/debug-snapshot.h>
+
 /*
  *	Notifier list for kernel code which wants to be called
  *	at shutdown. This is used to stop any idling DMA operations

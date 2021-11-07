@@ -1041,7 +1041,8 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 	struct slsi_gscan_param      gscan_param;
 	struct net_device            *dev;
 	int                          ret = 0;
-	int                          i, j;
+//	int                          i, j;
+	int                          i;
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 	u8 mac_addr_mask[ETH_ALEN];
 #endif

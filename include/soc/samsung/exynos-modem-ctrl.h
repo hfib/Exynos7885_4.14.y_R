@@ -21,4 +21,10 @@ static inline int modem_force_crash_exit_ext(void) { return 0; }
 static inline int modem_send_panic_noti_ext(void) { return 0; }
 #endif /* CONFIG_SEC_MODEM_IF */
 
+#define MODEM_CTRL_UART_AP 0
+#define MODEM_CTRL_UART_CP 1
+
+extern void send_panic_noti_modemif_ext(void);
+extern void send_uart_noti_to_modem(int val);
+
 #endif

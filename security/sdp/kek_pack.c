@@ -28,6 +28,8 @@
 
 #include <sdp/dek_common.h>
 
+#include <linux/cred.h>
+
 typedef struct __kek_pack {
     int engine_id;
     int user_id;

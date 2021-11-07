@@ -2609,7 +2609,7 @@ static char *shmem_get_srinfo_address(struct link_device *ld)
 
 	return base;
 }
-
+/*
 static void shmem_clr_sbdcplog(unsigned long arg)
 {
 #ifdef CONFIG_SBD_BOOTLOG
@@ -2638,7 +2638,7 @@ static void shmem_pr_sbdcplog(unsigned long arg)
 	shmem_clr_sbdcplog(arg);
 #endif
 }
-
+*/
 /* not in use */
 static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 		       unsigned int cmd, unsigned long arg)
@@ -3587,7 +3587,7 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	ld->close_tx = shmem_close_tx;
 	ld->crash_reason = shmem_crash_reason;
 	ld->airplane_mode = shmem_airplane_mode;
-	ld->pr_cplog = shmem_pr_sbdcplog;
+//	ld->pr_cplog = shmem_pr_sbdcplog;
 
 #ifdef CONFIG_MODEM_IF_NET_GRO
 	ld->gro_flush = gro_flush_timer;

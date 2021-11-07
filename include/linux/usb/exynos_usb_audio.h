@@ -21,7 +21,8 @@
 #elif defined(CONFIG_SOC_EXYNOS9610)
 #define USB_AUDIO_XHCI_BASE	0x13200000
 #else
-#error
+#define USB_AUDIO_XHCI_BASE     0x00000000
+//#error
 #endif
 
 struct host_data {

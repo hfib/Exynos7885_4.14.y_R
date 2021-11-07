@@ -77,7 +77,7 @@ enum cal_dfs_ext_ops {
 
 	cal_dfs_dvs = 30,
 
-	/* Add new ops at below */
+	// Add new ops at below
 	cal_dfs_mif_is_dll_on	= 50,
 
 	cal_dfs_cpu_idle_clock_down = 60,
@@ -111,7 +111,7 @@ extern void cal_gnss_reset_req_clear(void);
 extern int cal_init(void);
 extern int cal_if_init(void *);
 
-/* It is for debugging. */
+// It is for debugging.
 #define cal_vclk_dbg_info(a)	do{} while(0);
 //extern void cal_vclk_dbg_info(unsigned int id);
 #endif

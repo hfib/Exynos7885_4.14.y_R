@@ -11,7 +11,7 @@
 #ifndef __EXYNOS_BTS_H_
 #define __EXYNOS_BTS_H_
 
-#if defined(CONFIG_EXYNOS9610_BTS)
+//#if defined(CONFIG_EXYNOS9610_BTS)
 #define BUS_WIDTH		16
 #define DISP_UTIL		75
 
@@ -96,13 +96,13 @@ void bts_update_scen(enum bts_scen_type type, unsigned int val);
 /* bandwidth (KB/s) */
 void bts_update_bw(enum bts_bw_type type, struct bts_bw bw);
 unsigned int bts_calc_bw(enum bts_bw_type type, void *data);
-
+/*
 #else
 #define bts_update_scen(a, b) do {} while(0)
 #define bts_update_bw(a, b) do {} while(0)
 #define bts_calc_bw(a, b) do {} while(0)
 #endif
-
+*/
 #if defined(CONFIG_EXYNOS5422_BTS) || defined(CONFIG_EXYNOS5433_BTS)	\
 	|| defined(CONFIG_EXYNOS7420_BTS) || defined(CONFIG_EXYNOS7890_BTS) \
 	|| defined(CONFIG_EXYNOS8890_BTS)

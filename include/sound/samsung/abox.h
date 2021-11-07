@@ -120,8 +120,8 @@ extern void abox_request_dram_on(struct platform_device *pdev_abox, void *id, bo
  * @param[in]	area	kernel virtual address
  * @return	error code if any
  */
-extern int abox_iommu_map(struct device *dev, unsigned long iova,
-		phys_addr_t addr, size_t bytes, void *area);
+//extern int abox_iommu_map(struct device *dev, unsigned long iova,
+//		phys_addr_t addr, size_t bytes, void *area);
 
 /**
  * iommu map for abox
@@ -197,12 +197,16 @@ static inline int abox_hw_params_fixup_helper(struct snd_soc_pcm_runtime *rtd,
 {
 	return -ENODEV;
 }
-
+/*
 static inline int abox_iommu_map(struct device *dev, unsigned long iova,
 		phys_addr_t addr, size_t bytes, void *addr)
 {
 	return -ENODEV;
 }
+*/
+
+extern int abox_iommu_map(struct device *dev, unsigned long iova,
+                 phys_addr_t addr, size_t bytes, void *area);
 
 static inline int abox_iommu_unmap(struct device *dev, unsigned long iova)
 {

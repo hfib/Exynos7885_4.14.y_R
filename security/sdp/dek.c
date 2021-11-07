@@ -30,6 +30,7 @@
 #include <sdp/dek_ioctl.h>
 #include <sdp/dek_aes.h>
 #include <sdp/kek_pack.h>
+#include <linux/cred.h>
 
 /*
  * Need to move this to defconfig

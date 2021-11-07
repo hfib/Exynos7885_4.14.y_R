@@ -32,9 +32,9 @@
 #ifdef CONFIG_EXYNOS_PMU
 #include <soc/samsung/exynos-pmu.h>
 #endif
-#ifdef CONFIG_CAL_IF
+//#ifdef CONFIG_CAL_IF
 #include <soc/samsung/cal-if.h>
-#endif
+//#endif
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif

@@ -28,9 +28,9 @@
 #include <linux/of.h>
 #endif
 #ifdef CONFIG_MALI_DVFS
-#ifdef CONFIG_CAL_IF
+//#ifdef CONFIG_CAL_IF
 #include <soc/samsung/cal-if.h>
-#endif
+//#endif
 static gpu_dvfs_info gpu_dvfs_table_default[DVFS_TABLE_ROW_MAX];
 #endif
 

@@ -86,7 +86,7 @@ static int gnss_nopmu_update(unsigned int reg_offset, unsigned int mask,
 
 
 
-#if defined(CONFIG_SOC_EXYNOS9610)
+//#if defined(CONFIG_SOC_EXYNOS9610)
 static u32 g_shmem_size;
 static u32 g_shmem_base;
 
@@ -138,7 +138,7 @@ int gnss_dbus_write(unsigned int reg_offset, unsigned int val)
 
 	return 0;
 }
-#endif
+//#endif
 
 void __set_shdmem_size(u32 reg_offset, u32 memsz)
 {

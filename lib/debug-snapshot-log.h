@@ -270,7 +270,7 @@ struct dbg_snapshot_log {
 		int en;
 	} regulator[DSS_LOG_MAX_NUM];
 #endif
-#ifdef CONFIG_DEBUG_SNAPSHOT_THERMAL
+//#ifdef CONFIG_DEBUG_SNAPSHOT_THERMAL
 	struct __thermal_log {
 		unsigned long long time;
 		int cpu;
@@ -283,7 +283,7 @@ struct dbg_snapshot_log {
 		char *cooling_device;
 		unsigned int cooling_state;
 	} thermal[DSS_LOG_MAX_NUM];
-#endif
+//#endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
 	struct __acpm_log {
 		unsigned long long time;

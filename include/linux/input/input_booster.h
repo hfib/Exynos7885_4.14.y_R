@@ -1,4 +1,4 @@
-#if !defined(CONFIG_INPUT_BOOSTER) // Input Booster +
+//#if !defined(CONFIG_INPUT_BOOSTER) // Input Booster +
 #ifndef _INPUT_BOOSTER_H_
 #define _INPUT_BOOSTER_H_
 
@@ -107,7 +107,7 @@ static struct kpp kpp_fg;
 #define set_hmp(enable)
 #endif
 
-#if defined(CONFIG_ARCH_EXYNOS) //______________________________________________________________________________
+//#if defined(CONFIG_ARCH_EXYNOS) //______________________________________________________________________________
 #define SET_BOOSTER  { \
 	int value = INPUT_BOOSTER_NULL; \
 	_this->level++; \
@@ -145,7 +145,7 @@ static struct kpp kpp_fg;
 	_device_param_.hmp_boost = _dt_param_.hmp_boost; \
 	_device_param_.dma_latency = _dt_param_.dma_latency; \
 }
-#endif //______________________________________________________________________________
+//#endif //______________________________________________________________________________
 #define GET_BOOSTER_PARAM(_GENDER_, _HEAD_PARAM_, _TAIL_PARAM_) { \
 	int levels[][3] = { \
 		{1, 2, 0}, \
@@ -682,7 +682,7 @@ void input_booster_press_state(void *__this, int input_booster_event);
 void input_booster(struct input_dev *dev);
 void input_booster_init(void);
 #endif
-#endif // Input Booster -
+//#endif // Input Booster -
 
 
 

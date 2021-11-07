@@ -72,7 +72,7 @@
 /* Exynos PMU API functions are only available when ARCH_EXYNOS is defined.
  * Otherwise, we must hardcode the PMU address for setting the PMU registers.
  */
-#define USE_IOREMAP_NOPMU
+//#define USE_IOREMAP_NOPMU
 #endif
 
 enum gnss_mode {

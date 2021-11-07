@@ -1,7 +1,7 @@
 #ifndef __PWRCAL_INCLUDE_H__
 #define __PWRCAL_INCLUDE_H__
 
-#ifdef CONFIG_CAL_IF
+//#ifdef CONFIG_CAL_IF
 
 #define PWRCAL_TARGET_LINUX
 
@@ -10,9 +10,8 @@
 #include <linux/smc.h>
 #include <linux/delay.h>
 #include <soc/samsung/exynos-el3_mon.h>
-
+/*
 #else
-
 #define PWRCAL_TARGET_FW
 
 #include "types.h"
@@ -59,5 +58,5 @@
 	((mpidr >> MPIDR_LEVEL_SHIFT(level)) & MPIDR_LEVEL_MASK)
 
 #endif
-
+*/
 #endif

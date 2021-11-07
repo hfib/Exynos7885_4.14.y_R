@@ -50,6 +50,8 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
+#include <linux/debug-snapshot.h>
+
 #ifdef CONFIG_SEC_DEBUG
 #include <linux/sec_debug.h>
 #endif
