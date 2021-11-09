@@ -121,6 +121,14 @@ config EXYNOS_RGT
 	help
 	  dummy device driver for debugging samsung PMIC
 
+config SAMSUNG_DMADEV
+	bool
+	select ARM_AMBA
+	select DMADEVICES
+	select PL330_DMA
+	help
+	  Use DMA device engine for PL330 DMAC.
+
 # There is no need to enable these drivers for ARMv8
 config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
