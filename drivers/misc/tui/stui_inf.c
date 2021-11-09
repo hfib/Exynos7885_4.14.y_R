@@ -9,10 +9,10 @@
  * published by the Free Software Foundation.
 */
 
-#include <decon.h>
+//#include <decon.h>
 #include <linux/atomic.h>
 #include <linux/delay.h>
-#include <linux/fb.h>
+//#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
@@ -250,7 +250,7 @@ void trustedui_set_mode(int mode)
 EXPORT_SYMBOL(trustedui_set_mode);
 
 #endif /* CONFIG_SOC_EXYNOS3250 */
-
+/*
 static int stui_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
 
 static struct notifier_block stui_fb_notif = {
@@ -341,3 +341,4 @@ void stui_unregister_from_events(void)
 	unregister_reboot_notifier(&stui_reboot_nb);
 	pr_debug("[STUI] %s (finish)\n", __func__);
 }
+*/
