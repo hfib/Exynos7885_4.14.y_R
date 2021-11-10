@@ -13,13 +13,13 @@
 #include "stui_hal.h"
 
 #include <linux/dma-buf.h>
-#include <linux/exynos_ion.h>
+#include <linux/ion_exynos.h>
 #include <linux/fb.h>
 #include <linux/ion.h>
 #include <linux/version.h>
 
-static struct ion_client *client;
-static struct ion_handle *handle;
+//static struct ion_client *client;
+//static struct ion_handle *handle;
 static struct dma_buf *dbuf;
 
 static struct fb_info *get_fb_info_for_tui(struct device *fb_dev);
@@ -97,8 +97,8 @@ static int fb_protection_for_tui(bool tui_en)
 void stui_free_video_space(void)
 {
 	dma_buf_put(dbuf);
-	ion_free(client, handle);
-	ion_client_destroy(client);
+	//ion_free(client, handle);
+	//ion_client_destroy(client);
 }
 
 int stui_alloc_video_space(struct tui_hw_buffer *buffer)
@@ -112,6 +112,7 @@ int stui_alloc_video_space(struct tui_hw_buffer *buffer)
 	workbuf_size = (lcd_info->xres * lcd_info->yres * (2 * (DEFAULT_BPP >> 3) + 1));
 	framebuf_size = STUI_ALIGN_UP(framebuf_size, STUI_ALIGN_64kB_SZ);
 	workbuf_size = STUI_ALIGN_UP(workbuf_size, STUI_ALIGN_64kB_SZ);
+/*
 	client = exynos_ion_client_create("STUI module");
 	if (IS_ERR_OR_NULL(client)) {
 		pr_err("[STUI] ion_client_create() - failed: %ld\n", PTR_ERR(client));
@@ -119,6 +120,7 @@ int stui_alloc_video_space(struct tui_hw_buffer *buffer)
 	}
 
 try_alloc:
+
 	handle = ion_alloc(client, framebuf_size + workbuf_size, STUI_ALIGN_64kB_SZ,
 					EXYNOS_ION_HEAP_VIDEO_STREAM_MASK, 0);
 	if (IS_ERR_OR_NULL(handle)) {
@@ -127,7 +129,7 @@ try_alloc:
 			goto try_alloc;
 		}
 		pr_err("[STUI] ion_alloc() - failed: %ld\n", PTR_ERR(handle));
-		goto clean_client;
+		//goto clean_client;
 	}
 
 	dbuf = ion_share_dma_buf(client, handle);
@@ -139,7 +141,7 @@ try_alloc:
 	ion_phys(client, handle, (unsigned long *)&phys_addr, &dbuf->size);
 	if (!phys_addr)
 		goto clean_share_dma;
-
+*/
 	buffer->width = lcd_info->xres;
 	buffer->height = lcd_info->yres;
 	buffer->fb_physical = (uint64_t)phys_addr;
@@ -149,13 +151,14 @@ try_alloc:
 
 	return 0;
 
+/*
 clean_share_dma:
 	dma_buf_put(dbuf);
 clean_alloc:
 	ion_free(client, handle);
 clean_client:
 	ion_client_destroy(client);
-
+*/
 	return -1;
 }
 

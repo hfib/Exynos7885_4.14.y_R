@@ -60,7 +60,7 @@ long stui_process_cmd(struct device *dev, struct file *f, unsigned int cmd, unsi
 		/* allocate TUI frame buffer */
 		pr_debug("[STUI] Allocating Framebuffer\n");
 		memset(&buffer, 0, sizeof(struct tui_hw_buffer));
-		if (stui_alloc_video_space(dev, &buffer)) {
+		if (stui_alloc_video_space(&buffer)) {
 			ret = STUI_RET_ERR_INTERNAL_ERROR;
 			break;
 		}

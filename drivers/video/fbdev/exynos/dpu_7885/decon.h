@@ -32,7 +32,7 @@
 #include "./panels/decon_lcd.h"
 #include "decon_abd.h"
 #include "dsim.h"
-#include "../../../../staging/android/sw_sync.h"
+#include "../../../../dma-buf/sync_debug.h"
 
 #define MAX_DECON_CNT		3
 #define SUCCESS_EXYNOS_SMC	0
