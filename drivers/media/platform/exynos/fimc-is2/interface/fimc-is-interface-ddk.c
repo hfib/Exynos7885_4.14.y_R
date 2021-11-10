@@ -404,7 +404,7 @@ static void fimc_is_lib_camera_callback(void *this, enum lib_cb_event_type event
 				return;
 			}
 
-			csi_frame_start_inline(csi);
+			//csi_frame_start_inline(csi);
 		}
 
 		hw_ip->debug_index[1] = hw_ip->debug_index[0] % DEBUG_FRAME_COUNT;

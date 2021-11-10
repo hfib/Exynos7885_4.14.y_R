@@ -56,11 +56,6 @@ p_err:
 #endif
 }
 
-u32 csi_hw_g_fcount(u32 __iomem *base_reg, u32 vc)
-{
-	return is_hw_get_reg(base_reg, &csi_regs[CSIS_R_FRM_CNT_CH0 + vc]);
-}
-
 int csi_hw_reset(u32 __iomem *base_reg)
 {
 	int ret = 0;
@@ -164,7 +159,7 @@ int csi_hw_s_lane(u32 __iomem *base_reg,
 	u32 bit_width = 0;
 	u32 width, height, fps, pixelformat;
 	u32 val = fimc_is_hw_get_reg(base_reg, &csi_regs[CSIS_R_CSIS_CMN_CTRL]);
-	u32 lane;
+	//u32 lane;
 
 	width = image->window.width;
 	height = image->window.height;
@@ -205,6 +200,11 @@ int csi_hw_s_lane(u32 __iomem *base_reg,
 		phy_val = fimc_is_hw_set_field_value(phy_val, &csi_fields[CSIS_F_S_BYTE_CLK_ENABLE], 1);
 		fimc_is_hw_set_reg(base_reg, &csi_regs[CSIS_R_PHY_CMN_CTRL], phy_val);
 	}
+
+#ifdef CONFIG_SOC_EXYNOS7885
+	fimc_is_hw_set_field(base_reg, &csi_regs[CSIS_R_PHY_CMN_CTRL],
+			&csi_fields[CSIS_F_S_BYTE_CLK_ENABLE], 1);
+#endif
 
 #ifdef CONFIG_SOC_EXYNOS8895
 	/* Exynos8895 always set deskew enable */

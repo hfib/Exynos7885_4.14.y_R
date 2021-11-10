@@ -132,6 +132,7 @@ struct fimc_is_subdev {
 	struct list_head			list;
 
 	/* for internal use */
+	u32					pixelformat;
 	struct fimc_is_framemgr			internal_framemgr;
 	u32					buffer_num;
 	u32					bytes_per_pixel;

@@ -27,6 +27,7 @@
 #include "fimc-is-regs.h"
 #include "fimc-is-device-csi.h"
 #include "fimc-is-device-sensor.h"
+#include "fimc-is-common-config.h"
 
 extern int debug_csi;
 
@@ -121,7 +122,7 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 
 static inline void csi_s_buf_addr(struct fimc_is_device_csi *csi, struct fimc_is_frame *frame, u32 index, u32 vc)
 {
-	FIMC_BUG(!frame);
+	BUG_ON(!frame);
 
 	csi_hw_s_dma_addr(csi->base_reg, vc, index,
 				(u32)frame->dvaddr_buffer[0]);
@@ -129,7 +130,7 @@ static inline void csi_s_buf_addr(struct fimc_is_device_csi *csi, struct fimc_is
 
 static inline void csi_s_multibuf_addr(struct fimc_is_device_csi *csi, struct fimc_is_frame *frame, u32 index, u32 vc)
 {
-	FIMC_BUG(!frame);
+	BUG_ON(!frame);
 
 	csi_hw_s_multibuf_dma_addr(csi->base_reg, vc, index,
 				(u32)frame->dvaddr_buffer[0]);
@@ -206,7 +207,7 @@ static void csis_s_vc_dma_multibuf(struct fimc_is_device_csi *csi)
 
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
 
-		FIMC_BUG(!framemgr);
+		BUG_ON(!framemgr);
 
 		/* If error happened, return all processing frame to free */
 		if (test_bit((CSIS_BUF_ERR_VC0 + vc), &csi->state)) {
@@ -285,7 +286,7 @@ static void csis_flush_vc_buf_done(struct fimc_is_device_csi *csi, u32 vc,
 
 	device = container_of(csi->subdev, struct fimc_is_device_sensor, subdev_csi);
 
-	FIMC_BUG(!device);
+	BUG_ON(!device);
 
 	/* buffer done for several virtual ch 0 ~ 3, internal vc is skipped */
 	dma_subdev = csi->dma_subdev[vc];
@@ -298,8 +299,8 @@ static void csis_flush_vc_buf_done(struct fimc_is_device_csi *csi, u32 vc,
 	framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
 	vctx = dma_subdev->vctx;
 
-	FIMC_BUG(!ldr_framemgr);
-	FIMC_BUG(!framemgr);
+	BUG_ON(!ldr_framemgr);
+	BUG_ON(!framemgr);
 
 	framemgr_e_barrier(framemgr, 0);
 
@@ -530,14 +531,14 @@ static void csi_dma_tag(struct v4l2_subdev *subdev,
 
 		/* get subdev and video context */
 		f_subdev = frame->subdev;
-		FIMC_BUG(!f_subdev);
+		BUG_ON(!f_subdev);
 
 		vctx = f_subdev->vctx;
-		FIMC_BUG(!vctx);
+		BUG_ON(!vctx);
 
 		/* get the leader's framemgr */
 		ldr_framemgr = GET_SUBDEV_FRAMEMGR(f_subdev->leader);
-		FIMC_BUG(!ldr_framemgr);
+		BUG_ON(!ldr_framemgr);
 
 		findex = frame->stream->findex;
 		ldr_frame = &ldr_framemgr->frames[findex];
@@ -980,7 +981,7 @@ int fimc_is_csi_open(struct v4l2_subdev *subdev,
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_sensor *device;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1019,7 +1020,7 @@ int fimc_is_csi_close(struct v4l2_subdev *subdev)
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_sensor *device;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1041,12 +1042,12 @@ p_err:
 static int csi_init(struct v4l2_subdev *subdev, u32 value)
 {
 	int ret = 0;
-	int ch;
+	//int ch;
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor *device;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1072,7 +1073,7 @@ static int csi_s_power(struct v4l2_subdev *subdev,
 	int ret = 0;
 	struct fimc_is_device_csi *csi;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1121,7 +1122,7 @@ static long csi_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_sensor *device;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1155,7 +1156,7 @@ static int csi_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	int ret = 0;
 	int vc = 0;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1195,8 +1196,8 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	struct fimc_is_device_csi_dma *csi_dma = csi->csi_dma;
 	struct fimc_is_sensor_cfg *sensor_cfg;
 
-	FIMC_BUG(!csi);
-	FIMC_BUG(!device);
+	BUG_ON(!csi);
+	BUG_ON(!device);
 
 	fimc_is_vendor_csi_stream_on(csi);
 
@@ -1359,8 +1360,8 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 	struct fimc_is_device_sensor *device = v4l2_get_subdev_hostdata(subdev);
 	struct fimc_is_device_csi_dma *csi_dma = csi->csi_dma;
 
-	FIMC_BUG(!csi);
-	FIMC_BUG(!device);
+	BUG_ON(!csi);
+	BUG_ON(!device);
 
 	if (!test_bit(CSIS_START_STREAM, &csi->state)) {
 		merr("[CSI] already stop", csi);
@@ -1414,7 +1415,7 @@ static int csi_s_stream(struct v4l2_subdev *subdev, int enable)
 	int ret = 0;
 	struct fimc_is_device_csi *csi;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1453,8 +1454,8 @@ static int csi_s_param(struct v4l2_subdev *subdev, struct v4l2_streamparm *param
 	struct v4l2_captureparm *cp;
 	struct v4l2_fract *tpf;
 
-	FIMC_BUG(!subdev);
-	FIMC_BUG(!param);
+	BUG_ON(!subdev);
+	BUG_ON(!param);
 
 	cp = &param->parm.capture;
 	tpf = &cp->timeperframe;
@@ -1479,8 +1480,8 @@ static int csi_s_format(struct v4l2_subdev *subdev,
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_sensor *device;
 
-	FIMC_BUG(!subdev);
-	FIMC_BUG(!fmt);
+	BUG_ON(!subdev);
+	BUG_ON(!fmt);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1527,7 +1528,7 @@ static int csi_s_buffer(struct v4l2_subdev *subdev, void *buf, unsigned int *siz
 	struct fimc_is_subdev *dma_subdev = NULL;
 	struct fimc_is_frame *frame;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (unlikely(csi == NULL)) {
@@ -1578,7 +1579,7 @@ static int csi_g_errorCode(struct v4l2_subdev *subdev, u32 *errorCode)
 	int vc;
 	struct fimc_is_device_csi *csi;
 
-	FIMC_BUG(!subdev);
+	BUG_ON(!subdev);
 
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(subdev);
 	if (!csi) {
@@ -1621,7 +1622,7 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 	struct platform_device *pdev;
 	struct fimc_is_core *core;
 
-	FIMC_BUG(!device);
+	BUG_ON(!device);
 
 	subdev_csi = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!subdev_csi) {

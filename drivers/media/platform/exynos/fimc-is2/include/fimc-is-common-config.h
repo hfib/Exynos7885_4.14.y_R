@@ -539,6 +539,10 @@ extern int debug_sensor;
 #define dbg_tasklet(fmt, args...)	\
 	dbg_common(debug_irq, "[FBNS]", fmt, ##args)
 
+
+#define dbg_csiisr(fmt, args...)	\
+	dbg_common(debug_irq, "[CSI]", fmt, ##args)
+
 #define dbg_isr(fmt, object, args...)		\
 	dbg_common(debug_irq, "[%s]", fmt, object->name, ##args)
 
