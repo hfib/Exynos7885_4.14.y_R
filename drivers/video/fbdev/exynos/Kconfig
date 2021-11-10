@@ -1,5 +1,31 @@
+#
+# Exynos Video configuration
+#
+
+menuconfig EXYNOS_VIDEO
+        bool "Exynos Video driver support"
+     #   depends on ARCH_S5PV210 || ARCH_EXYNOS
+	default y
+        help
+          This enables support for EXYNOS Video devic>
+
+if EXYNOS_VIDEO
+
+#
+# MIPI DSI driver
+#                                                     
+config EXYNOS_MIPI_DSI
+	bool "EXYNOS MIPI DSI driver support."
+        select GENERIC_PHY
+        help
+          This enables support for MIPI-DSI device.
+
 if SOC_EXYNOS9610
-
 source "drivers/video/fbdev/exynos/dpu20/Kconfig"
+endif
 
-endif # SOC_EXYNOS9610
+if SOC_EXYNOS7885
+source "drivers/video/fbdev/exynos/dpu_7885/Kconfig"
+endif
+
+endif # EXYNOS_VIDEO
