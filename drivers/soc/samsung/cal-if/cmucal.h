@@ -153,6 +153,7 @@ enum clk_pll_type {
 	PLL_1451X = 14510,
 	PLL_1452X = 14520,
 	PLL_1460X = 14600,
+	PLL_1480X = 14800,
 
 	PLL_1050X = 10500,
 	PLL_1051X = 10510,
@@ -173,6 +174,7 @@ enum margin_id {
 	MARGIN_BIG,
 	MARGIN_LIT,
 	MARGIN_G3D,
+	MARGIN_FSYS,
 	MARGIN_INTCAM,
 	MARGIN_CAM,
 	MARGIN_DISP,
@@ -502,18 +504,7 @@ struct cmucal_clkout {
 	.clk.status_idx	= _so,				\
 	.clk.enable_idx	= _eo,				\
 }
-#ifdef CONFIG_CMUCAL_QCH_IGNORE_SUPPORT
-#define CLK_QCH(_id, _o, _so, _eo, _ig)			\
-[_id & MASK_OF_ID] = {	\
-	.clk.id		= _id,				\
-	.clk.name	= #_id,				\
-	.clk.pid	= EMPTY_CLK_ID,			\
-	.clk.offset_idx	= _o,				\
-	.clk.status_idx	= _so,				\
-	.clk.enable_idx	= _eo,				\
-	.ignore_idx     = _ig,                          \
-}
-#else
+
 #define CLK_QCH(_id, _o, _so, _eo)			\
 [_id & MASK_OF_ID] = {	\
 	.clk.id		= _id,				\
@@ -523,7 +514,7 @@ struct cmucal_clkout {
 	.clk.status_idx	= _so,				\
 	.clk.enable_idx	= _eo,				\
 }
-#endif
+
 #define CLK_OPTION(_id, _o, _eo)			\
 [_id & MASK_OF_ID] = {	\
 	.clk.id		= _id,				\
