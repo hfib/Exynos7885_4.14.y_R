@@ -27,15 +27,20 @@
 #include <linux/isp_cooling.h>
 #include <dt-bindings/thermal/thermal_exynos.h>
 
+#if defined(CONFIG_SOC_EXYNOS7885)
+#define NR_HOTPLUG_CPUS	6
+#else
 #define NR_HOTPLUG_CPUS	4
+#endif
 #define MCELSIUS        1000
+#define DUAL_CPU		(2)
+#define QUAD_CPU		(4)
 
 enum soc_type {
 	SOC_ARCH_EXYNOS8890 = 1,
 	SOC_ARCH_EXYNOS8895 = 2,
 	SOC_ARCH_EXYNOS7872,
-	SOC_ARCH_EXYNOS9810,
-	SOC_ARCH_EXYNOS9610,
+	SOC_ARCH_EXYNOS7885,
 };
 
 /**
@@ -68,6 +73,7 @@ struct exynos_tmu_platform_data {
 	enum soc_type type;
 	u32 sensor_type;
 	u32 cal_type;
+	u32 cal_mode;
 };
 
 enum sensing_type {
@@ -83,6 +89,32 @@ static const char * const sensing_method[] = {
 	[MAX] = "max",
 	[MIN] = "min",
 	[BALANCE] = "balance",
+};
+
+enum thermal_zone_name {
+	MNGS_QUAD = 0,
+	APOLLO,
+	GPU,
+	ISP,
+	MNGS_DUAL,
+	BIG,
+	LITTLE,
+	G3D,
+	END_ZONE_NAME,
+};
+
+/**
+ * It maps 'enum znoe_name' defined in above and is used to define zone name.
+ */
+static const char * const tz_zone_names[] = {
+	[MNGS_QUAD]= "MNGS_QUAD",
+	[APOLLO] = "APOLLO",
+	[GPU] = "GPU",
+	[ISP] = "ISP",
+	[MNGS_DUAL]= "MNGS_DUAL",
+	[BIG]="BIG",
+	[LITTLE]="LITTLE",
+	[G3D] = "G3D",
 };
 
 struct sensor_info {
@@ -108,7 +140,6 @@ struct sensor_info {
  * @num_probe: number of probe for TMU_CONTROL1 SFR setting.
  * @regulator: pointer to the TMU regulator structure.
  * @reg_conf: pointer to structure to register with core thermal.
- * @ntrip: number of supported trip points.
  * @tmu_initialize: SoC specific TMU initialization method
  * @tmu_control: SoC specific TMU control method
  * @tmu_read: SoC specific TMU temperature read method
@@ -121,9 +152,6 @@ struct exynos_tmu_data {
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
-	int limited_frequency;
-	int limited_threshold;
-	int limited_threshold_release;
 	struct exynos_tmu_platform_data *pdata;
 	void __iomem *base;
 	int irq;
@@ -132,9 +160,8 @@ struct exynos_tmu_data {
 	struct mutex lock;
 	u16 temp_error1, temp_error2;
 	struct thermal_zone_device *tzd;
-	unsigned int ntrip;
-	bool enabled;
 	struct thermal_cooling_device *cool_dev;
+	struct notifier_block nb;
 	struct list_head node;
 	u32 sensors;
 	int num_probe;
@@ -144,7 +171,6 @@ struct exynos_tmu_data {
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
 	int balance_offset;
-	struct mutex hotplug_lock;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -152,4 +178,5 @@ struct exynos_tmu_data {
 	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
 	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
+
 #endif /* _EXYNOS_TMU_H */
