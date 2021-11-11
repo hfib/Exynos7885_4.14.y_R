@@ -26,10 +26,10 @@
 #include "sysdep.h"
 #include "tzdev.h"
 
-static dma_addr_t tzdev_cma_addr = 0;
+static dma_addr_t tzdev_cma_addr;
 
 #if defined(CONFIG_DMA_CMA)
-static struct page *tzdev_page = NULL;
+static struct page *tzdev_page;
 #endif /* CONFIG_DMA_CMA */
 
 int tzdev_cma_mem_register(void)
@@ -64,7 +64,7 @@ int tzdev_cma_mem_register(void)
 void tzdev_cma_mem_init(struct device *dev)
 {
 #if defined(CONFIG_DMA_CMA)
-	static struct page *tzdev_page = NULL;
+	static struct page *tzdev_page;
 
 	tzdev_page = dma_alloc_from_contiguous(dev,
 			(CONFIG_TZDEV_MEMRESSZ - CONFIG_TZDEV_MEMRESSZPROT) >> PAGE_SHIFT,

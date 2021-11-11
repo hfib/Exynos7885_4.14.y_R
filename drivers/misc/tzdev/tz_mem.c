@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017, Samsung Electronics Co., Ltd.
+ * Copyright (C) 2016 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -18,16 +18,14 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/vmalloc.h>
 
 #include "sysdep.h"
-#include "tzlog.h"
 #include "tzdev.h"
-#include "tz_cred.h"
-#include "tz_mem.h"
 #include "tz_iwio.h"
+#include "tz_mem.h"
+#include "tz_shmem_validator.h"
 
-#define TZDEV_MIGRATION_MAX_RETRIES	40
+#define TZDEV_MIGRATION_MAX_RETRIES 20
 
 #define TZDEV_PFNS_PER_PAGE		(PAGE_SIZE / sizeof(sk_pfn_t))
 #define TZDEV_IWSHMEM_IDS_PER_PAGE	(PAGE_SIZE / sizeof(uint32_t))
@@ -41,6 +39,18 @@ static DEFINE_MUTEX(tzdev_mem_mutex);
 
 int isolate_lru_page(struct page *page);
 
+static __maybe_unused unsigned int gup_flags(int write, int force)
+{
+	unsigned int flags = 0;
+
+	if (write)
+		flags |= FOLL_WRITE;
+	if (force)
+		flags |= FOLL_FORCE;
+
+	return flags;
+}
+
 static unsigned long __tzdev_get_user_pages(struct task_struct *task,
 		struct mm_struct *mm, unsigned long start, unsigned long nr_pages,
 		int write, int force, struct page **pages,
@@ -51,8 +61,13 @@ static unsigned long __tzdev_get_user_pages(struct task_struct *task,
 	int res;
 
 	while (nr_pinned < nr_pages) {
-		res = sysdep_get_user_pages(task, mm, start, nr_pages - nr_pinned, write,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168)
+		res = get_user_pages(task, mm, start, nr_pages - nr_pinned,
+				gup_flags(write, force), cur_pages, vmas);
+#else
+		res = get_user_pages(task, mm, start, nr_pages - nr_pinned, write,
 				force, cur_pages, vmas);
+#endif
 		if (res < 0)
 			return nr_pinned;
 
@@ -67,13 +82,24 @@ static unsigned long __tzdev_get_user_pages(struct task_struct *task,
 /* This is the same approach to pinning user memory
  * as used in Infiniband drivers.
  * Refer to drivers/inifiniband/core/umem.c */
-int tzdev_get_user_pages(struct task_struct *task, struct mm_struct *mm,
+static int tzdev_get_user_pages(struct task_struct *task, struct mm_struct *mm,
 		unsigned long start, unsigned long nr_pages, int write,
 		int force, struct page **pages, struct vm_area_struct **vmas)
 {
-	unsigned long i, locked, nr_pinned;
+	unsigned long i, locked, lock_limit, nr_pinned;
+
+	if (!can_do_mlock())
+		return -EPERM;
+
+	down_write(&mm->mmap_sem);
 
 	locked = nr_pages + mm->pinned_vm;
+	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+
+	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+		up_write(&mm->mmap_sem);
+		return -ENOMEM;
+	}
 
 	nr_pinned = __tzdev_get_user_pages(task, mm, start, nr_pages, write,
 						force, pages, vmas);
@@ -81,7 +107,7 @@ int tzdev_get_user_pages(struct task_struct *task, struct mm_struct *mm,
 		goto fail;
 
 	mm->pinned_vm = locked;
-
+	up_write(&mm->mmap_sem);
 
 	return 0;
 
@@ -89,10 +115,12 @@ fail:
 	for (i = 0; i < nr_pinned; i++)
 		put_page(pages[i]);
 
+	up_write(&mm->mmap_sem);
+
 	return -EFAULT;
 }
 
-void tzdev_put_user_pages(struct page **pages, unsigned long nr_pages)
+static void tzdev_put_user_pages(struct page **pages, unsigned long nr_pages)
 {
 	unsigned long i;
 
@@ -103,7 +131,7 @@ void tzdev_put_user_pages(struct page **pages, unsigned long nr_pages)
 	}
 }
 
-void tzdev_decrease_pinned_vm(struct mm_struct *mm, unsigned long nr_pages)
+static void tzdev_decrease_pinned_vm(struct mm_struct *mm, unsigned long nr_pages)
 {
 	down_write(&mm->mmap_sem);
 	mm->pinned_vm -= nr_pages;
@@ -117,8 +145,6 @@ static void tzdev_mem_free(int id, struct tzdev_mem_reg *mem, unsigned int is_us
 
 	if (!mem->pid) {
 		if (!is_user) {
-			if (mem->free_func)
-				mem->free_func(mem->free_data);
 			idr_remove(&tzdev_mem_map, id);
 			kfree(mem);
 		}
@@ -163,6 +189,20 @@ static void tzdev_mem_list_release(unsigned char *buf, unsigned int cnt)
 	}
 }
 
+static void _tzdev_mem_release_all(unsigned int is_user)
+{
+	struct tzdev_mem_reg *mem;
+	unsigned int id;
+
+	mutex_lock(&tzdev_mem_mutex);
+	idr_for_each_entry(&tzdev_mem_map, mem, id)
+		tzdev_mem_free(id, mem, is_user);
+	mutex_unlock(&tzdev_mem_mutex);
+
+	if (!is_user)
+		idr_destroy(&tzdev_mem_map);
+}
+
 static int _tzdev_mem_release(int id, unsigned int is_user)
 {
 	struct tzdev_mem_reg *mem;
@@ -183,8 +223,6 @@ static int _tzdev_mem_release(int id, unsigned int is_user)
 		goto out;
 	}
 
-	mem->in_release = 1;
-
 	ch = tz_iwio_get_aux_channel();
 	cnt = tzdev_smc_shmem_list_rls(id);
 	if (cnt > 0) {
@@ -199,9 +237,6 @@ static int _tzdev_mem_release(int id, unsigned int is_user)
 		tz_iwio_put_aux_channel();
 	}
 
-	if (ret == -ESHUTDOWN)
-		tzdev_mem_free(id, mem, 0);
-
 out:
 	mutex_unlock(&tzdev_mem_mutex);
 
@@ -209,66 +244,33 @@ out:
 }
 
 static int _tzdev_mem_register(struct tzdev_mem_reg *mem, sk_pfn_t *pfns,
-		unsigned long nr_pages, unsigned int is_writable)
+		unsigned long nr_pages, unsigned int flags)
 {
-	int ret, id;
 	struct tz_iwio_aux_channel *ch;
-	unsigned int pfns_used, pfns_transferred, off, pfns_current;
-	ssize_t size;
-
-	ret = tz_format_cred(&mem->cred);
-	if (ret) {
-		tzdev_print(0, "Failed to calculate shmem credentials, %d\n", ret);
-		return ret;
-	}
+	int i, id;
 
 	mutex_lock(&tzdev_mem_mutex);
-	ret = sysdep_idr_alloc(&tzdev_mem_map, mem);
-	if (ret < 0)
-		goto unlock;
+	id = sysdep_idr_alloc(&tzdev_mem_map, mem);
+	if (id < 0)
+		goto out;
 
-	id = ret;
 	ch = tz_iwio_get_aux_channel();
 
-	memcpy(ch->buffer, &mem->cred, sizeof(struct tz_cred));
-
-	pfns_used = DIV_ROUND_UP(sizeof(struct tz_cred), sizeof(sk_pfn_t));
-	off = pfns_used * sizeof(sk_pfn_t);
-	pfns_transferred = 0;
-
-	while (pfns_transferred < nr_pages) {
-		pfns_current = min(nr_pages - pfns_transferred,
-				TZDEV_PFNS_PER_PAGE - pfns_used);
-		size = pfns_current * sizeof(sk_pfn_t);
-
-		memcpy(&ch->buffer[off], &pfns[pfns_transferred], size);
-		ret = tzdev_smc_shmem_list_reg(id, nr_pages, is_writable);
-		if (ret) {
-			tzdev_print(0, "Failed register pfns, %d\n", ret);
-			goto put_aux_channel;
+	for (i = 0; i < nr_pages; i += TZDEV_PFNS_PER_PAGE) {
+		memcpy(ch->buffer, &pfns[i], min(nr_pages - i, TZDEV_PFNS_PER_PAGE) * sizeof(sk_pfn_t));
+		if (tzdev_smc_shmem_list_reg(id, nr_pages, flags)) {
+			idr_remove(&tzdev_mem_map, id);
+			id = -EFAULT;
+			break;
 		}
-
-		pfns_transferred += pfns_current;
-
-		/* First write to aux channel is done with additional offset,
-		 * because first call requires passing credentianls.
-		 * For the subsequent calls offset is 0. */
-		off = 0;
-		pfns_used = 0;
 	}
 
 	tz_iwio_put_aux_channel();
+
+out:
 	mutex_unlock(&tzdev_mem_mutex);
 
 	return id;
-
-put_aux_channel:
-	tz_iwio_put_aux_channel();
-	idr_remove(&tzdev_mem_map, id);
-unlock:
-	mutex_unlock(&tzdev_mem_mutex);
-
-	return ret;
 }
 
 #if defined(CONFIG_TZDEV_PAGE_MIGRATION)
@@ -299,21 +301,29 @@ static unsigned long tzdev_get_migratetype(struct page *page)
 	return migrate_type;
 }
 
-static void tzdev_verify_migration_page(struct page *page)
+static int tzdev_verify_migration_page(struct page *page)
 {
 	unsigned long migrate_type;
 
 	migrate_type = tzdev_get_migratetype(page);
 	if (migrate_type == MIGRATE_CMA || migrate_type == MIGRATE_ISOLATE)
-		tzdev_print(0, "%s: migrate_type == %lu\n", __func__, migrate_type);
+		return -EFAULT;
+
+	return 0;
 }
 
-static void tzdev_verify_migration(struct page **pages, unsigned long nr_pages)
+static int tzdev_verify_migration(struct page **pages, unsigned long nr_pages)
 {
-	unsigned long i;
+	unsigned int i;
+	int ret;
 
-	for (i = 0; i < nr_pages; i++)
-		tzdev_verify_migration_page(pages[i]);
+	for (i = 0; i < nr_pages; i++) {
+		ret = tzdev_verify_migration_page(pages[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int __tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
@@ -334,7 +344,6 @@ static int __tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
 		 * Isolated page may originally have MIGRATE_CMA type,
 		 * so caller should repeat migration for such pages */
 		if (migrate_type == MIGRATE_ISOLATE) {
-			tzdev_print(0, "%s: migrate_type is MIGRATE_ISOLATE\n", __func__);
 			ret = -EAGAIN;
 			i++;
 			continue;
@@ -356,7 +365,6 @@ static int __tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
 		 * repeat migrate operation */
 		res = isolate_lru_page(pages[i]);
 		if (res < 0) {
-			tzdev_print(0, "%s: isolate_lru_page() failed, res=%d\n", __func__, res);
 			ret = -EAGAIN;
 			i++;
 			continue;
@@ -400,14 +408,20 @@ static int __tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
 		}
 
 		/* and pin it */
+		down_write(&mm->mmap_sem);
 		pinned = __tzdev_get_user_pages(task, mm, cur_start, nr_pin,
 						write, force, cur_pages, NULL);
+		up_write(&mm->mmap_sem);
 		if (pinned != nr_pin)
 			return -EFAULT;
 
-		/* Check that migrated pages are not MIGRATE_CMA or MIGRATE_ISOLATE */
-		tzdev_verify_migration(cur_pages, nr_pin);
-		bitmap_set(verified_bitmap, cur_pages_index, nr_pin);
+		/* Check that migrated pages are not MIGRATE_CMA or MIGRATE_ISOLATE
+		 * and mark them as verified. If it is not true inform caller
+		 * to repeat migrate operation */
+		if (tzdev_verify_migration(cur_pages, nr_pin) == 0)
+			bitmap_set(verified_bitmap, cur_pages_index, nr_pin);
+		else
+			ret = -EAGAIN;
 
 		migrate_nr -= nr_pin;
 	} while (migrate_nr);
@@ -415,7 +429,7 @@ static int __tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
 	return ret;
 }
 
-int tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
+static int tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
 		unsigned long start, unsigned long nr_pages, int write,
 		int force, struct page **pages)
 {
@@ -460,19 +474,13 @@ int tzdev_mem_init(void)
 
 void tzdev_mem_fini(void)
 {
-	struct tzdev_mem_reg *mem;
-	unsigned int id;
-
-	mutex_lock(&tzdev_mem_mutex);
-	idr_for_each_entry(&tzdev_mem_map, mem, id)
-		tzdev_mem_free(id, mem, 0);
-	mutex_unlock(&tzdev_mem_mutex);
-
+	_tzdev_mem_release_all(0);
 	__free_page(virt_to_page(tzdev_mem_release_buf));
 }
 
-int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write)
+int tzdev_mem_register_user(struct tzio_mem_register *s)
 {
+	struct pid *pid;
 	struct task_struct *task;
 	struct mm_struct *mm;
 	struct page **pages;
@@ -483,23 +491,36 @@ int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write)
 	int ret, res, i, id;
 	unsigned int flags = 0;
 
-	if (!size)
-		return -EINVAL;
+	if (s->size) {
+		if (!access_ok(s->write ? VERIFY_WRITE : VERIFY_READ, s->ptr, s->size))
+			return -EFAULT;
 
-	if (!access_ok(write ? VERIFY_WRITE : VERIFY_READ, ptr, size))
-		return -EFAULT;
+		start = (unsigned long)s->ptr >> PAGE_SHIFT;
+		end = ((unsigned long)s->ptr + s->size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		nr_pages = end - start;
+	}
 
-	start = (unsigned long)ptr >> PAGE_SHIFT;
-	end = ((unsigned long)ptr + size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	nr_pages = end - start;
-
-	if (write)
+	if (s->write)
 		flags |= TZDEV_IWSHMEM_REG_FLAG_WRITE;
 
-	task = current;
-	mm = get_task_mm(task);
-	if (!mm)
+	if (tz_shmem_validator_approve(s->pid, s->ptr, s->size))
+		return -EPERM;
+
+	pid = find_get_pid(s->pid);
+	if (!pid)
 		return -ESRCH;
+
+	task = get_pid_task(pid, PIDTYPE_PID);
+	if (!task) {
+		ret = -ESRCH;
+		goto out_pid;
+	}
+
+	mm = get_task_mm(task);
+	if (!mm) {
+		ret = -ESRCH;
+		goto out_task;
+	}
 
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
@@ -519,27 +540,17 @@ int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write)
 		goto out_pfns;
 	}
 
-	mem->pid = get_task_pid(task, PIDTYPE_PID);
+	mem->pid = pid;
 	mem->nr_pages = nr_pages;
 	mem->pages = pages;
-	mem->free_func = NULL;
-	mem->free_data = NULL;
-	mem->in_release = 0;
 
-	/*
-	 * Holding 'mm->mmap_sem' is required to synchronize users who tries to register same pages simultaneously.
-	 * Without synchronization both users would hold page refcount and so preventing migration.
-	 */
-	down_write(&mm->mmap_sem);
-	res = tzdev_get_user_pages(task, mm, (unsigned long)ptr,
-			nr_pages, 1, !write, pages, NULL);
+	res = tzdev_get_user_pages(task, mm, (unsigned long)s->ptr,
+			nr_pages, 1, !s->write, pages, NULL);
 	if (res) {
-		up_write(&mm->mmap_sem);
 		tzdev_print(0, "Failed to pin user pages (%d)\n", res);
 		ret = res;
 		goto out_mem;
 	}
-
 #if defined(CONFIG_TZDEV_PAGE_MIGRATION)
 	/*
 	 * In case of enabled migration it is possible that userspace pages
@@ -549,16 +560,14 @@ int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write)
 	 * allocations with GFP_KERNEL flag to point UNMOVABLE memblock
 	 * to be used for such allocations.
 	 */
-	res = tzdev_migrate_pages(task, mm, (unsigned long)ptr, nr_pages,
-			1, !write, pages);
+	res = tzdev_migrate_pages(task, mm, (unsigned long)s->ptr, nr_pages,
+			1, !s->write, pages);
 	if (res < 0) {
-		up_write(&mm->mmap_sem);
 		tzdev_print(0, "Failed to migrate CMA pages (%d)\n", res);
 		ret = res;
 		goto out_pin;
 	}
 #endif /* CONFIG_TZDEV_PAGE_MIGRATION */
-	up_write(&mm->mmap_sem);
 	for (i = 0; i < nr_pages; i++)
 		pfns[i] = page_to_pfn(pages[i]);
 
@@ -568,11 +577,14 @@ int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write)
 		goto out_pin;
 	}
 
+	s->id = id;
+
 	kfree(pfns);
 
 	mmput(mm);
+	put_task_struct(task);
 
-	return id;
+	return 0;
 
 out_pin:
 	tzdev_put_user_pages(pages, nr_pages);
@@ -585,31 +597,32 @@ out_pages:
 	kfree(pages);
 out_mm:
 	mmput(mm);
-
+out_task:
+	put_task_struct(task);
+out_pid:
+	put_pid(pid);
 	return ret;
 }
 
-int tzdev_mem_register(void *ptr, unsigned long size, unsigned int write,
-		tzdev_mem_free_func_t free_func, void *free_data)
+int tzdev_mem_register(void *ptr, unsigned long size, unsigned int write)
 {
 	struct tzdev_mem_reg *mem;
 	struct page *page;
 	sk_pfn_t *pfns;
 	unsigned long addr, start, end;
-	unsigned long i, nr_pages = 0;
-	int ret, id;
+	unsigned long nr_pages = 0;
+	int ret, i, id;
 	unsigned int flags = TZDEV_IWSHMEM_REG_FLAG_KERNEL;
 
-	if (!size)
-		return -EINVAL;
+	if (size) {
+		addr = (unsigned long)ptr;
 
-	addr = (unsigned long)ptr;
+		BUG_ON(addr + size <= addr || !IS_ALIGNED(addr | size, PAGE_SIZE));
 
-	BUG_ON(addr + size <= addr || !IS_ALIGNED(addr | size, PAGE_SIZE));
-
-	start = addr >> PAGE_SHIFT;
-	end = (addr + size) >> PAGE_SHIFT;
-	nr_pages = end - start;
+		start = addr >> PAGE_SHIFT;
+		end = (addr + size) >> PAGE_SHIFT;
+		nr_pages = end - start;
+	}
 
 	if (write)
 		flags |= TZDEV_IWSHMEM_REG_FLAG_WRITE;
@@ -625,15 +638,14 @@ int tzdev_mem_register(void *ptr, unsigned long size, unsigned int write,
 	}
 
 	mem->pid = NULL;
-	mem->free_func = free_func;
-	mem->free_data = free_data;
-	mem->in_release = 0;
 
 	for (i = 0; i < nr_pages; i++) {
-		page = is_vmalloc_addr(ptr + PAGE_SIZE * i)
-				? vmalloc_to_page(ptr + PAGE_SIZE * i)
-				: virt_to_page(addr + PAGE_SIZE * i);
-
+		page = virt_to_page(addr + PAGE_SIZE * i);
+#if defined(CONFIG_TZDEV_PAGE_MIGRATION)
+		ret = tzdev_verify_migration_page(page);
+		if (ret)
+			goto out_mem;
+#endif
 		pfns[i] = page_to_pfn(page);
 	}
 
@@ -655,6 +667,57 @@ out_pfns:
 	return ret;
 }
 
+int tzdev_mem_pages_register(struct page **pages, unsigned int nr_pages, unsigned int write)
+{
+	int ret, id;
+	unsigned int i;
+	struct tzdev_mem_reg *mem;
+	sk_pfn_t *pfns;
+	unsigned int flags = TZDEV_IWSHMEM_REG_FLAG_KERNEL;
+
+	if (write)
+		flags |= TZDEV_IWSHMEM_REG_FLAG_WRITE;
+
+	pfns = kmalloc(nr_pages * sizeof(sk_pfn_t), GFP_KERNEL);
+	if (!pfns)
+		return -ENOMEM;
+
+	mem = kmalloc(sizeof(struct tzdev_mem_reg), GFP_KERNEL);
+	if (!mem) {
+		ret = -ENOMEM;
+		goto out_pfns;
+	}
+
+	mem->pid = NULL;
+
+	for (i = 0; i < nr_pages; i++) {
+#if defined(CONFIG_TZDEV_PAGE_MIGRATION)
+		ret = tzdev_verify_migration_page(pages[i]);
+		if (ret)
+			goto out_mem;
+#endif
+		pfns[i] = page_to_pfn(pages[i]);
+	}
+
+	id = _tzdev_mem_register(mem, pfns, nr_pages, flags);
+	if (id < 0) {
+		ret = id;
+		goto out_mem;
+	}
+
+	kfree(pfns);
+
+	return id;
+
+out_mem:
+	kfree(mem);
+
+out_pfns:
+	kfree(pfns);
+
+	return ret;
+}
+
 int tzdev_mem_release_user(unsigned int id)
 {
 	return _tzdev_mem_release(id, 1);
@@ -665,14 +728,24 @@ int tzdev_mem_release(unsigned int id)
 	return _tzdev_mem_release(id, 0);
 }
 
-void tzdev_mem_release_panic_handler(void)
+void tzdev_mem_release_all_user(void)
+{
+	_tzdev_mem_release_all(1);
+}
+
+int tzdev_is_mem_exist(unsigned int id, unsigned int *is_user)
 {
 	struct tzdev_mem_reg *mem;
-	unsigned int id;
 
 	mutex_lock(&tzdev_mem_mutex);
-	idr_for_each_entry(&tzdev_mem_map, mem, id)
-		if (mem->in_release)
-			tzdev_mem_free(id, mem, 0);
+	mem = idr_find(&tzdev_mem_map, id);
+	if (!mem) {
+		mutex_unlock(&tzdev_mem_mutex);
+		return 0;
+	}
+
+	*is_user = !!mem->pid;
 	mutex_unlock(&tzdev_mem_mutex);
+
+	return 1;
 }

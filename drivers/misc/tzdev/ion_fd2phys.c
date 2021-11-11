@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2018 Samsung Electronics, Inc.
+ * Copyright (C) 2015 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) "IONFD2PHYS: " fmt
 /* #define DEBUG */
 
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -29,9 +29,13 @@
 #endif
 
 #include "tz_cdev.h"
-#include "tzdev.h"
 
-#define TZDEV_MAX_PFNS_COUNT	(SIZE_MAX / sizeof(sk_pfn_t))
+/* Define type for exchange with Secure kernel */
+#ifdef CONFIG_TZDEV_SK_PFNS_64BIT
+typedef	u64	sk_pfn_t;
+#else
+typedef	u32	sk_pfn_t;
+#endif
 
 struct ionfd2phys {
 	int fd;
@@ -117,11 +121,6 @@ static long ionfd2phys_ioctl(struct file *file, unsigned int cmd,
 		goto out;
 	}
 
-	if (data.nr_pfns > TZDEV_MAX_PFNS_COUNT) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	pfns = kzalloc(data.nr_pfns * sizeof(sk_pfn_t), GFP_KERNEL);
 	if (!pfns) {
 		pr_err("Failed ION FD: kzalloc(%zu)\n", data.nr_pfns);
@@ -162,11 +161,6 @@ static long compat_ionfd2phys_ioctl(struct file *file, unsigned int cmd,
 		goto out;
 	}
 
-	if (data.nr_pfns > TZDEV_MAX_PFNS_COUNT) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	pfns = kzalloc(data.nr_pfns * sizeof(sk_pfn_t), GFP_KERNEL);
 	if (!pfns) {
 		pr_err("Failed ION FD: kzalloc(%d)\n", data.nr_pfns);
@@ -194,7 +188,7 @@ out:
 }
 #endif
 
-static const struct file_operations ionfd2phys_fops = {
+static struct file_operations ionfd2phys_fops = {
 	.unlocked_ioctl = ionfd2phys_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_ionfd2phys_ioctl,
@@ -251,14 +245,6 @@ static ssize_t system_heap_id_show(struct device *dev, struct device_attribute *
 
 static DEVICE_ATTR(system_heap_id, S_IRUGO, system_heap_id_show, NULL);
 
-static ssize_t ionfd2phys_id_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	return sprintf(buf, "%d\n", 0);
-}
-
-static DEVICE_ATTR(ionfd2phys_id, S_IRUGO, ionfd2phys_id_show, NULL);
-
 static int __init ionfd2phys_init(void)
 {
 	int ret;
@@ -308,15 +294,8 @@ static int __init ionfd2phys_init(void)
 		goto out_unregister;
 	}
 
-	ret = device_create_file(ionfd2phys_cdev.device, &dev_attr_ionfd2phys_id);
-	if (ret) {
-		pr_err("ionfd2phys_id sysfs file creation failed\n");
-		goto out_remove_file;
-	}
 	return 0;
 
-out_remove_file:
-	device_remove_file(ionfd2phys_cdev.device, &dev_attr_system_heap_id);
 out_unregister:
 	tz_cdev_unregister(&ionfd2phys_cdev);
 ion_destroy:

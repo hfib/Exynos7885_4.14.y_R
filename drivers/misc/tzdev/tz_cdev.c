@@ -14,8 +14,6 @@
 #include <linux/fs.h>
 #include "tz_cdev.h"
 
-static atomic_t tz_cdev_state = ATOMIC_INIT(0);
-
 int tz_cdev_register(struct tz_cdev *cdev)
 {
 	int err;
@@ -43,8 +41,6 @@ int tz_cdev_register(struct tz_cdev *cdev)
 		goto device_create_failed;
 	}
 
-	atomic_set(&tz_cdev_state, 1);
-
 	return 0;
 
 device_create_failed:
@@ -59,9 +55,6 @@ class_create_failed:
 
 void tz_cdev_unregister(struct tz_cdev *cdev)
 {
-	if (!atomic_cmpxchg(&tz_cdev_state, 1, 0))
-		return;
-
 	device_destroy(cdev->class, cdev->dev);
 	cdev_del(&cdev->cdev);
 	class_destroy(cdev->class);

@@ -38,7 +38,7 @@ ssize_t circ_buf_write_packet_local(struct circ_buf_desc *circ_buf_desc, const c
 	ssize_t ret;
 	unsigned int write_count_orig = circ_buf_desc->write_count;
 
-	header.packet_size = (unsigned int)length;
+	header.packet_size = length;
 
 	ret = circ_buf_write_local(circ_buf_desc, (void *) &header,
 			sizeof(struct circ_buf_packet_header), CIRC_BUF_MODE_KERNEL);

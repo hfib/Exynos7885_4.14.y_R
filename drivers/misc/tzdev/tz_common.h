@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017, Samsung Electronics Co., Ltd.
+ * Copyright (C) 2016 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,96 +14,78 @@
 #ifndef __TZ_COMMON_H__
 #define __TZ_COMMON_H__
 
-#ifndef __USED_BY_TZSL__
-#include <teec/iw_messages.h>
-#include <linux/ioctl.h>
 #include <linux/types.h>
 #include <linux/limits.h>
-#else
-#include <stdint.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#endif
 
-#define UINT_PTR(a)			((void *)(unsigned long)(a))
+/*
+ * CA_ID is a full basename of CA executable.
+ * It can not be longer than max supported filename length defined in Linux.
+ */
+#define CA_ID_LEN			(256)
 
 #define TZ_IOC_MAGIC			'c'
 
-#define TZIO_MEM_REGISTER		_IOW(TZ_IOC_MAGIC, 120, struct tzio_mem_register)
+#define TZIO_SMC			_IOWR(TZ_IOC_MAGIC, 101, struct tzio_smc_data)
+#define TZIO_WAIT_EVT			_IO(TZ_IOC_MAGIC, 112)
+#define TZIO_GET_PIPE			_IOR(TZ_IOC_MAGIC, 113, int)
+#define TZIO_UPDATE_REE_TIME		_IO(TZ_IOC_MAGIC, 114)
+#define TZIO_GET_ACCESS_INFO		_IOWR(TZ_IOC_MAGIC, 119, struct tzio_access_info)
+#define TZIO_MEM_REGISTER		_IOWR(TZ_IOC_MAGIC, 120, struct tzio_mem_register)
 #define TZIO_MEM_RELEASE		_IOW(TZ_IOC_MAGIC, 121, int)
-#define TZIO_CRYPTO_CLOCK_CONTROL	_IOW(TZ_IOC_MAGIC, 123, int)
+#if defined(CONFIG_TZDEV_QC_CRYPTO_CLOCKS_USR_MNG)
+#define TZIO_SET_QC_CLK			_IOW(TZ_IOC_MAGIC, 123, int)
+#endif
 #define TZIO_GET_SYSCONF		_IOW(TZ_IOC_MAGIC, 124, struct tzio_sysconf)
-#define TZIO_BOOST_CONTROL		_IOW(TZ_IOC_MAGIC, 125, int)
+#define TZIO_BOOST			_IO(TZ_IOC_MAGIC, 125)
+#define TZIO_RELAX			_IO(TZ_IOC_MAGIC, 126)
+#define TZIO_GET_CPU_MASK		_IO(TZ_IOC_MAGIC, 127)
+#define TZIO_ACCEPT_NEW_HOLE		_IO(TZ_IOC_MAGIC, 128)
 
-#define TZIO_UIWSOCK_CONNECT		_IOW(TZ_IOC_MAGIC, 130, int)
-#define TZIO_UIWSOCK_WAIT_CONNECTION	_IOW(TZ_IOC_MAGIC, 131, int)
-#define TZIO_UIWSOCK_SEND		_IOW(TZ_IOC_MAGIC, 132, int)
-#define TZIO_UIWSOCK_RECV		_IOWR(TZ_IOC_MAGIC, 133, int)
-#define TZIO_UIWSOCK_LISTEN		_IOWR(TZ_IOC_MAGIC, 134, int)
-#define TZIO_UIWSOCK_ACCEPT		_IOWR(TZ_IOC_MAGIC, 135, int)
-#define TZIO_UIWSOCK_GETSOCKOPT		_IOWR(TZ_IOC_MAGIC, 136, int)
-#define TZIO_UIWSOCK_SETSOCKOPT		_IOWR(TZ_IOC_MAGIC, 137, int)
+struct tzio_access_info {
+	int32_t pid;			/* CA PID */
+	int32_t gid;			/* CA GID - to be received from TZDEV */
+	char ca_name[CA_ID_LEN];	/* CA identity - to be received from TZDEV */
+};
 
 /* NB: Sysconf related definitions should match with those in SWd */
-#define SYSCONF_SWD_VERSION_LEN			256
-#define SYSCONF_SWD_EARLY_SWD_INIT		(1 << 0)
+#define SYSCONF_VERSION_LEN			(256)
+#define SYSCONF_CRYPTO_CLOCK_MANAGEMENT		(1 << 0)
 
-#define SYSCONF_NWD_CRYPTO_CLOCK_MANAGEMENT	(1 << 0)
-#define SYSCONF_NWD_CPU_HOTPLUG			(1 << 1)
-#define SYSCONF_NWD_TZDEV_DEPLOY_TZAR		(1 << 2)
-
-struct tzio_swd_sysconf {
+struct tzio_sysconf {
 	uint32_t os_version;			/* SWd OS version */
 	uint32_t cpu_num;			/* SWd number of cpu supported */
 	uint32_t big_cpus_mask;			/* SWd big cluster cpus mask */
 	uint32_t flags;				/* SWd flags */
-	char version[SYSCONF_SWD_VERSION_LEN];	/* SWd OS version string */
+	char version[SYSCONF_VERSION_LEN];	/* SWd OS version string */
 } __attribute__((__packed__));
 
-struct tzio_nwd_sysconf {
-	uint32_t flags;				/* NWd flags */
-} __attribute__((__packed__));
+#define NR_SMC_ARGS	(4)
 
-struct tzio_sysconf {
-	struct tzio_nwd_sysconf nwd_sysconf;
-	struct tzio_swd_sysconf swd_sysconf;
-} __attribute__((__packed__));
+struct tzio_smc_data {
+	union {
+		int32_t args[NR_SMC_ARGS]; /* SMC args (in/out) */
+		struct {
+			uint16_t pipe;
+			uint8_t reserved1;
+			uint8_t event_mask;
+			uint32_t reserved2;
+			uint16_t iwnotify_oem_flags;
+			uint16_t reserved3;
+			uint32_t reserved4;
+		} __packed;
+	};
+};
 
 struct tzio_mem_register {
+	int32_t pid;			/* Memory region owner's PID (in) */
 	const uint64_t ptr;		/* Memory region start (in) */
 	uint64_t size;			/* Memory region size (in) */
-	uint32_t write;			/* 1 - rw, 0 - ro */
-} __attribute__((__packed__));
-
-/* Used for switching crypto clocks ON/OFF */
-enum {
-	TZIO_CRYPTO_CLOCK_OFF,
-	TZIO_CRYPTO_CLOCK_ON,
+	int32_t id;			/* Memory region ID (out) */
+	int32_t write;			/* 1 - rw, 0 - ro */
 };
 
-/* Used for switching boosting ON/OFF */
-enum {
-	TZIO_BOOST_OFF,
-	TZIO_BOOST_ON,
+struct tzio_service_channel {
+	uint32_t mask;
 };
-
-#define TZ_UIWSOCK_MAX_NAME_LENGTH	256
-
-struct tz_uiwsock_connection {
-	char name[TZ_UIWSOCK_MAX_NAME_LENGTH];
-};
-
-struct tz_uiwsock_data {
-	uint64_t buffer;
-	uint64_t size;
-	uint32_t flags;
-} __attribute__((__packed__));
-
-struct tz_uiwsock_sockopt {
-	int32_t level;
-	int32_t optname;
-	uint64_t optval;
-	uint32_t optlen;
-} __attribute__((__packed__));
 
 #endif /*__TZ_COMMON_H__*/

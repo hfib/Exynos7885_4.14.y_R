@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017, Samsung Electronics Co., Ltd.
+ * Copyright (C) 2016 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -17,37 +17,24 @@
 #include <linux/mm.h>
 #include <linux/pid.h>
 
-#include <tz_cred.h>
-
-typedef void (*tzdev_mem_free_func_t)(void *);
+#include "tz_common.h"
 
 struct tzdev_mem_reg {
 	struct pid *pid;
 	unsigned long nr_pages;
 	struct page **pages;
-	tzdev_mem_free_func_t free_func;
-	void *free_data;
-	unsigned int in_release;
-	struct tz_cred cred;
 };
 
 int tzdev_mem_init(void);
 void tzdev_mem_fini(void);
 
-int tzdev_mem_register_user(void *ptr, unsigned long size, unsigned int write);
+int tzdev_mem_register_user(struct tzio_mem_register *s);
 int tzdev_mem_release_user(unsigned int id);
+void tzdev_mem_release_all_user(void);
+int tzdev_is_mem_exist(unsigned int id, unsigned int *is_user);
 
-int tzdev_mem_register(void *ptr, unsigned long size, unsigned int write,
-		tzdev_mem_free_func_t free_func, void *free_data);
+int tzdev_mem_register(void *ptr, unsigned long size, unsigned int write);
+int tzdev_mem_pages_register(struct page **pages, unsigned int nr_pages, unsigned int write);
 int tzdev_mem_release(unsigned int id);
-int tzdev_get_user_pages(struct task_struct *task, struct mm_struct *mm,
-		unsigned long start, unsigned long nr_pages, int write,
-		int force, struct page **pages, struct vm_area_struct **vmas);
-int tzdev_migrate_pages(struct task_struct *task, struct mm_struct *mm,
-		unsigned long start, unsigned long nr_pages, int write,
-		int force, struct page **pages);
-void tzdev_put_user_pages(struct page **pages, unsigned long nr_pages);
-void tzdev_decrease_pinned_vm(struct mm_struct *mm, unsigned long nr_pages);
-void tzdev_mem_release_panic_handler(void);
 
 #endif /* __TZ_MEM_H__ */

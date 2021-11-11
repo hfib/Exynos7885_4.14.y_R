@@ -19,7 +19,7 @@
 /*#define TZTUI_DEBUG*/
 
 #ifdef TZTUI_DEBUG
-#define DBG(...)    pr_info( "[tztui] DBG : " __VA_ARGS__)
+#define DBG(...)    pr_info("[tztui] DBG : " __VA_ARGS__)
 #define ERR(...)    pr_alert("[tztui] ERR : " __VA_ARGS__)
 #else
 #define DBG(...)

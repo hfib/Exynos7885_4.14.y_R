@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Samsung Electronics, Inc.
+ * Copyright (C) 2016 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,9 +14,8 @@
 #ifndef _TZPROFILER_H_
 #define _TZPROFILER_H_
 
-#include "tz_cred.h"
-#include "tz_iwcbuf.h"
 #include "tzdev.h"
+#include "tz_iwcbuf.h"
 
 #define TZPROFILER_NAME			"tzprofiler"
 

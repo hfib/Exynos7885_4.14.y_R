@@ -90,7 +90,7 @@ struct circ_buf *circ_buf_alloc(unsigned long size);
 void circ_buf_free(struct circ_buf *circ_buf);
 
 /**
- * Function initialized circ_buf to be empty.
+ * Function initializes circ_buf to be empty.
  * @param[in]	circ_buf	circ_buf to initialize
  */
 void circ_buf_init(struct circ_buf *circ_buf);

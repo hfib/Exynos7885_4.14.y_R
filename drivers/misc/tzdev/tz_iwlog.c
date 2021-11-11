@@ -62,8 +62,8 @@ static void tz_iwlog_buffer_print(const char *buf, unsigned int count)
 				bytes_in = avail;
 				bytes_out = avail;
 			} else {
-				bytes_in = (unsigned int)(p - buf + 1);
-				bytes_out = (unsigned int)(p - buf);
+				bytes_in = p - buf + 1;
+				bytes_out = p - buf;
 			}
 		} else {
 			if (count >= avail) {
@@ -106,10 +106,9 @@ static void tz_iwlog_buffer_print(const char *buf, unsigned int count)
 static void tz_iwlog_read_buffers_do(void)
 {
 	struct tz_iwcbuf *buf;
-	unsigned int i, write_count;
-	unsigned long count;
+	unsigned int i, count, write_count;
 
-	for_each_possible_cpu(i) {
+	for (i = 0; i < NR_SW_CPU_IDS; ++i) {
 		buf = per_cpu(tz_iwlog_buffer, i);
 		if (!buf)
 			continue;
@@ -155,13 +154,11 @@ int tz_iwlog_initialize(void)
 
 	for (i = 0; i < NR_SW_CPU_IDS; ++i) {
 		struct tz_iwcbuf *buffer = tz_iwio_alloc_iw_channel(
-				TZ_IWIO_CONNECT_LOG, CONFIG_TZLOG_PG_CNT,
-				NULL, NULL, NULL);
-		if (IS_ERR(buffer))
-			return PTR_ERR(buffer);
+				TZ_IWIO_CONNECT_LOG, CONFIG_TZLOG_PG_CNT);
+		if (!buffer)
+			return -ENOMEM;
 
-		if (cpu_possible(i))
-			per_cpu(tz_iwlog_buffer, i) = buffer;
+		per_cpu(tz_iwlog_buffer, i) = buffer;
 	}
 
 	th = kthread_run(tz_iwlog_kthread, NULL, "tzlog");

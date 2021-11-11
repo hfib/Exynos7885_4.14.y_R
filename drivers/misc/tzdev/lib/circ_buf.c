@@ -103,7 +103,7 @@ void circ_buf_connect(struct circ_buf_desc *circ_buf_desc,
 	circ_buf_desc->circ_buf = circ_buf;
 	circ_buf_desc->read_count = circ_buf->read_count;
 	circ_buf_desc->write_count = circ_buf->write_count;
-	circ_buf_desc->size = (unsigned int)size;
+	circ_buf_desc->size = size;
 }
 
 ssize_t circ_buf_write(struct circ_buf_desc *circ_buf_desc, const char *buf,
@@ -197,7 +197,7 @@ ssize_t circ_buf_write_local(struct circ_buf_desc *circ_buf_desc, const char *bu
 		if (ret)
 			goto fail;
 
-		new_count = (unsigned int)(circ_buf_desc->write_count + cur);
+		new_count = circ_buf_desc->write_count + cur;
 		circ_buf_desc->write_count = (new_count == end ? 0 : new_count);
 		buf += cur;
 		cur_length -= cur;
@@ -207,7 +207,7 @@ ssize_t circ_buf_write_local(struct circ_buf_desc *circ_buf_desc, const char *bu
 	if (ret)
 		goto fail;
 
-	circ_buf_desc->write_count += (unsigned int)cur_length;
+	circ_buf_desc->write_count += cur_length;
 
 	return length;
 
@@ -277,7 +277,7 @@ ssize_t __circ_buf_read_local(struct circ_buf_desc *circ_buf_desc, char *buf,
 		return -EIO;
 
 	circ_buf_desc->write_count = write_count_shared;
-	circ_buf_desc->read_count += (unsigned int)offset;
+	circ_buf_desc->read_count += offset;
 
 	if (circ_buf_desc->write_count >= circ_buf_desc->read_count) {
 		avail = circ_buf_desc->write_count - circ_buf_desc->read_count;
@@ -309,7 +309,7 @@ ssize_t __circ_buf_read_local(struct circ_buf_desc *circ_buf_desc, char *buf,
 		if (ret)
 			goto fail;
 
-		new_count = (unsigned int)(circ_buf_desc->read_count + cur);
+		new_count = circ_buf_desc->read_count + cur;
 		circ_buf_desc->read_count = (new_count == end ? 0 : new_count);
 		buf += cur;
 		cur_length -= cur;
@@ -319,7 +319,7 @@ ssize_t __circ_buf_read_local(struct circ_buf_desc *circ_buf_desc, char *buf,
 	if (ret)
 		goto fail;
 
-	circ_buf_desc->read_count += (unsigned int)cur_length;
+	circ_buf_desc->read_count += cur_length;
 
 	return length;
 

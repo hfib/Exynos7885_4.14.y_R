@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2018, Samsung Electronics Co., Ltd.
+ * Copyright (C) 2015 Samsung Electronics, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -74,10 +74,10 @@ static DEFINE_SPINLOCK(tui_event_lock);
 static DEFINE_MUTEX(tui_mode_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(irq_wait_queue);
 
-static bool tui_status = false;
+static bool tui_status;
 static int tui_mode = TUI_OFFLINE;
-static unsigned int tui_event_flag = 0;
-static volatile int thread_handler_stop = 0;
+static unsigned int tui_event_flag;
+static volatile int thread_handler_stop;
 
 static struct device *local_dev, *local_i2c_dev;
 static struct fts_ts_info *local_fts_info;
@@ -132,8 +132,7 @@ int tui_set_mode(int mode)
 			tui_event_flag = 0;
 			thread_handler_stop = 0;
 		}
-	}
-	else if (mode == TUI_OFFLINE) {
+	} else if (mode == TUI_OFFLINE) {
 		ret_val = release_touch();
 		if (!ret_val)
 			tui_mode = mode;
@@ -224,8 +223,8 @@ static irq_handler_t find_irqhandler(int irq, void *dev_id)
 			return NULL;
 		}
 		if (action->dev_id == dev_id) {
-			DBG("FOUND thread_fn=%pK", action->thread_fn);
-			DBG("FOUND handler=%pK", action->handler);
+			DBG("FOUND thread_fn=%p", action->thread_fn);
+			DBG("FOUND handler=%p", action->handler);
 			break;
 		}
 
@@ -464,8 +463,7 @@ static int tztui_open(struct inode *inode, struct file *filp)
 		tui_status = true;
 		mutex_unlock(&tui_mode_mutex);
 		return 0;
-	}
-	else {
+	} else {
 		mutex_unlock(&tui_mode_mutex);
 		ERR("TUI Device already used");
 		return -EBUSY;

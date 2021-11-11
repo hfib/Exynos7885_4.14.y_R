@@ -178,56 +178,25 @@ config TZ_BOOT_LOG_PG_CNT
 	help
 	  Select TZ boot stage logger buffer size in pages.
 
-config TZDEV_QC_CRYPTO_CLOCKS_MANAGEMENT
-	bool "TZDEV crypto clock management"
+config TZ_SHMEM_VALIDATOR
+	bool "TZ shared memory registration requests validator"
 	default n
 	help
-	  Enable QC HW crypto clock management.
+	  Enable additional tz device, that helps tzdev to validate shared
+	  memory registration requests.
 
-config TZDEV_QC_CRYPTO_CLOCKS_USR_MNG
-	bool "User crypto clock management"
-	depends on TZDEV_QC_CRYPTO_CLOCKS_MANAGEMENT
+config TZDEV_EARLY_SWD_INIT
+	bool "TZDEV early SWD initialization"
 	default n
 	help
-	  Enable QC HW crypto clock management from User space. If disabled,
-	  QC HW clock disable/enable is done in TZDEV.
+	  Provide ability of early SWD initialization (on modules init stage).
 
-config TZDEV_DEBUG
-	bool "Debug extensions"
+config TZ_WORMHOLE
+	bool "enable/disable sockets-like IPC and fd tunneling"
 	default n
 	help
-	  Debug extensions for samsung TZ Based Secure OS interface driver.
-
-config TZ_NWFS
-	bool "Normal world file system interface driver"
-	default y
-	help
-	  Normal world file system interface driver.
-
-config TZDEV_DEPLOY_TZAR
-	bool "tzdev deploy startup.tzar"
-	default n
-	help
-	  Deploy startup.tzar when tzdev init.
-
-config TEEGRIS_VERSION
-	int "TEEGRIS(SecureOS) version"
-	default 2
-	help
-	  TEEGRIS built with specific version of SDK
-
-choice
-	prompt "Choose per-cpu kthread workers variant"
-	default TZDEV_KTHREADS_NOTIFIER
-	help
-	  This option selects implementation to manage per-cpu kthreads.
-
-	config TZDEV_KTHREADS_NOTIFIER
-		bool "Use old-style cpu notifiers"
-	config TZDEV_KTHREADS_SMPBOOT
-		depends on TZDEV_SK_MULTICORE
-		bool "Use smpboot hotplug subsystem"
-endchoice
+	  Provide hand-made sockets-like IPC and fd tunneling between client and daemon
+	  to satisfy Android O Treble requirements.
 
 if TZDEV_DEBUG
 
