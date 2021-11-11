@@ -41,6 +41,8 @@ enum soc_type {
 	SOC_ARCH_EXYNOS8895 = 2,
 	SOC_ARCH_EXYNOS7872,
 	SOC_ARCH_EXYNOS7885,
+	SOC_ARCH_EXYNOS9810,
+	SOC_ARCH_EXYNOS9610,
 };
 
 /**
@@ -140,6 +142,7 @@ struct sensor_info {
  * @num_probe: number of probe for TMU_CONTROL1 SFR setting.
  * @regulator: pointer to the TMU regulator structure.
  * @reg_conf: pointer to structure to register with core thermal.
+ * @ntrip: number of supported trip points.
  * @tmu_initialize: SoC specific TMU initialization method
  * @tmu_control: SoC specific TMU control method
  * @tmu_read: SoC specific TMU temperature read method
@@ -152,6 +155,9 @@ struct exynos_tmu_data {
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
+	int limited_frequency;
+	int limited_threshold;
+	int limited_threshold_release;
 	struct exynos_tmu_platform_data *pdata;
 	void __iomem *base;
 	int irq;
@@ -160,8 +166,9 @@ struct exynos_tmu_data {
 	struct mutex lock;
 	u16 temp_error1, temp_error2;
 	struct thermal_zone_device *tzd;
+	unsigned int ntrip;
+	bool enabled;
 	struct thermal_cooling_device *cool_dev;
-	struct notifier_block nb;
 	struct list_head node;
 	u32 sensors;
 	int num_probe;
@@ -171,6 +178,7 @@ struct exynos_tmu_data {
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
 	int balance_offset;
+	struct mutex hotplug_lock;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -178,5 +186,4 @@ struct exynos_tmu_data {
 	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
 	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
-
 #endif /* _EXYNOS_TMU_H */
