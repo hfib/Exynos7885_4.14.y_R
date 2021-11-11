@@ -21,11 +21,15 @@
 #include <linux/clk-provider.h>
 #include <linux/console.h>
 #include <linux/dma-buf.h>
-#include <linux/exynos_ion.h>
-#include <linux/ion.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
+#include <linux/exynos_ion.h>
+#include <linux/ion.h>
 #include <linux/exynos_iovmm.h>
+#else
+#include <linux/ion_exynos.h>
+#endif
 #include <linux/bug.h>
 #include <linux/of_address.h>
 #include <linux/debugfs.h>
@@ -48,7 +52,7 @@
 #include "dsim.h"
 #include "./panels/dsim_panel.h"
 #include "decon_notify.h"
-#include "../../../../staging/android/sw_sync.h"
+#include "../../../../dma-buf/sync_debug.h"
 #include "dpp.h"
 
 #ifdef CONFIG_SAMSUNG_TUI
@@ -263,9 +267,14 @@ static void decon_free_dma_buf(struct decon_device *decon,
 	if (!dma->dma_addr)
 		return;
 
-	if (dma->fence)
-		sync_fence_put(dma->fence);
-
+	if (dma->fence) {
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+		fput(dma->fence->file);
+#else
+		dma_fence_put(dma->fence);
+		dma->fence = NULL;
+#endif
+	}
 	ion_iovmm_unmap(dma->attachment, dma->dma_addr);
 
 	dma_buf_unmap_attachment(dma->attachment, dma->sg_table,
@@ -273,7 +282,9 @@ static void decon_free_dma_buf(struct decon_device *decon,
 
 	dma_buf_detach(dma->dma_buf, dma->attachment);
 	dma_buf_put(dma->dma_buf);
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	ion_free(decon->ion_client, dma->ion_handle);
+#endif
 	memset(dma, 0, sizeof(struct decon_dma_buf_data));
 }
 
@@ -331,7 +342,7 @@ int decon_tui_protection(bool tui_en)
 		mutex_lock(&decon->lock);
 		decon_hiber_block_exit(decon);
 		/* 2.Finish frmame update of normal OS */
-		flush_kthread_worker(&decon->up.worker);
+		kthread_flush_worker(&decon->up.worker);
 
 		if (decon->dt.psr_mode == DECON_VIDEO_MODE) {
 			struct decon_window_regs win_regs = {0, };
@@ -464,7 +475,7 @@ static int decon_enable(struct decon_device *decon)
 		goto err;
 	}
 
-	flush_kthread_worker(&decon->up.worker);
+	kthread_flush_worker(&decon->up.worker);
 
 #if defined(CONFIG_SEC_INCELL)
 	if (decon->esd_recovery == 1) {
@@ -596,7 +607,7 @@ static int decon_disable(struct decon_device *decon)
 		goto err;
 	}
 
-	flush_kthread_worker(&decon->up.worker);
+	kthread_flush_worker(&decon->up.worker);
 
 #if defined(CONFIG_SEC_INCELL)
 	if (decon->esd_recovery) {
@@ -1003,9 +1014,15 @@ int decon_set_vsync_int(struct fb_info *info, bool active)
 	return 0;
 }
 
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 static unsigned int decon_map_ion_handle(struct decon_device *decon,
 		struct device *dev, struct decon_dma_buf_data *dma,
 		struct ion_handle *ion_handle, struct dma_buf *buf, int win_no)
+#else
+static unsigned int decon_map_ion_handle(struct decon_device *decon,
+		struct device *dev, struct decon_dma_buf_data *dma,
+		struct dma_buf *buf, int win_no)
+#endif
 {
 
 	dma->fence = NULL;
@@ -1037,7 +1054,9 @@ static unsigned int decon_map_ion_handle(struct decon_device *decon,
 	exynos_ion_sync_dmabuf_for_device(dev, dma->dma_buf, dma->dma_buf->size,
 			DMA_TO_DEVICE);
 
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	dma->ion_handle = ion_handle;
+#endif
 
 	return dma->dma_buf->size;
 
@@ -1055,7 +1074,9 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 		struct decon_win_config *config,
 		struct decon_reg_data *regs)
 {
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	struct ion_handle *handle;
+#endif
 	struct dma_buf *buf;
 	struct decon_dma_buf_data dma_buf_data[MAX_PLANE_CNT];
 	struct dpp_device *dpp;
@@ -1068,11 +1089,13 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 
 	regs->plane_cnt[idx] = dpu_get_plane_cnt(config->format);
 	for (i = 0; i < regs->plane_cnt[idx]; ++i) {
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 		handle = ion_import_dma_buf(decon->ion_client, config->fd_idma[i]);
 		if (IS_ERR(handle)) {
 			decon_err("failed to import fd:%d\n", config->fd_idma[i]);
 			ret = PTR_ERR(handle);
 			goto fail;
+#endif
 		}
 
 		buf = dma_buf_get(config->fd_idma[i]);
@@ -1085,8 +1108,14 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 		/* idma_type Should be ODMA_WB */
 		decon_dbg("get subdevdata\n");
 		dpp = v4l2_get_subdevdata(decon->dpp_sd[config->idma_type]);
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 		buf_size = decon_map_ion_handle(decon, dpp->dev,
 				&dma_buf_data[i], handle, buf, idx);
+#else
+		buf_size = decon_map_ion_handle(decon, dpp->dev,
+				&dma_buf_data[i], buf, idx);
+#endif
+
 		if (!buf_size) {
 			decon_err("failed to map buffer\n");
 			ret = -ENOMEM;
@@ -1167,7 +1196,11 @@ static int decon_set_win_buffer(struct decon_device *decon,
 	int ret, i;
 	u32 alpha_length;
 	struct decon_rect r;
-	struct sync_fence *fence = NULL;
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	struct sync_file *fence = NULL;
+#else
+	struct dma_fence *fence = NULL;
+#endif
 	u32 config_size = 0;
 	u32 alloc_size = 0;
 	u32 byte_per_pixel = 4;
@@ -1190,7 +1223,11 @@ static int decon_set_win_buffer(struct decon_device *decon,
 
 	if (config->fence_fd >= 0) {
 		/* fence is managed by buffer not plane */
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 		fence = sync_fence_fdget(config->fence_fd);
+#else
+		fence = sync_file_get_fence(config->fence_fd);
+#endif
 		regs->dma_buf_data[idx][0].fence = fence;
 		if (!fence) {
 			decon_err("failed to import fence fd\n");
@@ -1662,8 +1699,12 @@ end:
 
 	decon_release_old_bufs(decon, regs, old_dma_bufs, old_plane_cnt);
 	/* signal to acquire fence */
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 	decon_signal_fence(decon);
-
+#else
+	decon_signal_fence(regs->fence);
+	dma_fence_put(regs->fence);
+#endif
 	DPU_EVENT_LOG_FENCE(&decon->sd, regs, DPU_EVT_RELEASE_FENCE);
 
 	/* add update bw : cur < prev */
@@ -1848,7 +1889,11 @@ static int decon_set_win_config(struct decon_device *decon,
 {
 	int num_of_window = 0;
 	struct decon_reg_data *regs;
-	struct sync_fence *fence;
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	struct sync_file *fence;
+#else
+        struct sync_file *sync_file;
+#endif
 	int ret = 0;
 
 	decon_dbg("%s +\n", __func__);
@@ -1861,7 +1906,11 @@ static int decon_set_win_config(struct decon_device *decon,
 		win_data->fence = decon_create_fence(decon, &fence, NULL);
 		if (win_data->fence >= 0)
 			decon_install_fence(fence, win_data->fence);
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 		decon_signal_fence(decon);
+#else
+		decon_signal_fence(sync_file->fence);
+#endif
 		goto err;
 	}
 
@@ -1883,7 +1932,9 @@ static int decon_set_win_config(struct decon_device *decon,
 		if (win_data->fence < 0)
 			goto err_prepare;
 	} else {
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 		decon->timeline_max++;
+#endif
 		win_data->fence = -1;
 	}
 
@@ -1893,12 +1944,6 @@ static int decon_set_win_config(struct decon_device *decon,
 	if (ret)
 		goto err_prepare;
 
-	if (win_data->fence >= 0) {
-#if defined(CONFIG_DPU_20)
-		decon_create_release_fences(decon, win_data, fence);
-#endif
-	}
-
 	decon_hiber_block(decon);
 
 	mutex_lock(&decon->up.lock);
@@ -1907,7 +1952,7 @@ static int decon_set_win_config(struct decon_device *decon,
 	win_data->extra.remained_frames =
 		atomic_read(&decon->up.remaining_frame);
 	mutex_unlock(&decon->up.lock);
-	queue_kthread_work(&decon->up.worker, &decon->up.work);
+	kthread_queue_work(&decon->up.worker, &decon->up.work);
 
 	/**
 	 * The code is moved here because the DPU driver may get a wrong fd
@@ -1947,9 +1992,18 @@ static int decon_set_win_config(struct decon_device *decon,
 err_prepare:
 	if (win_data->fence >= 0) {
 		/* video mode should keep previous buffer object */
-		if (decon->lcd_info->mode == DECON_MIPI_COMMAND_MODE)
+		if (decon->lcd_info->mode == DECON_MIPI_COMMAND_MODE) {
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 			decon_signal_fence(decon);
-		sync_fence_put(fence);
+#else
+			decon_signal_fence(sync_file->fence);
+#endif
+		}
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+                fput(dma->fence->file);
+#else
+                sync_fence_put(fence);
+#endif
 		put_unused_fd(win_data->fence);
 	}
 	kfree(regs);
@@ -2441,6 +2495,7 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 
 #if !defined(BRINGUP_DECON_BIST)
 #if defined(CONFIG_ION_EXYNOS)
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	handle = ion_alloc(decon->ion_client, (size_t)size, 0,
 					EXYNOS_ION_HEAP_SYSTEM_MASK, 0);
 	if (IS_ERR(handle)) {
@@ -2455,6 +2510,15 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	}
 
 	vaddr = ion_map_kernel(decon->ion_client, handle);
+#else
+	buf = ion_alloc_dmabuf("ion_system_heap", (size_t)size, 0);
+	if (IS_ERR(buf)) {
+		dev_err(decon->dev, "ion_share_dma_buf() failed\n");
+		goto err_share_dma_buf;
+	}
+
+	vaddr = dma_buf_vmap(buf);
+#endif
 
 	memset(vaddr, 0x00, size);
 
@@ -2465,8 +2529,13 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	win->plane_cnt = 1;
 
 	dpp = v4l2_get_subdevdata(decon->dpp_sd[decon->dt.dft_idma]);
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	ret = decon_map_ion_handle(decon, dpp->dev, &win->dma_buf_data[0],
 			handle, buf, win->idx);
+#else
+	ret = decon_map_ion_handle(decon, dpp->dev, &win->dma_buf_data[0],
+			buf, win->idx);
+#endif
 	if (!ret)
 		goto err_map;
 	map_dma = win->dma_buf_data[0].dma_addr;
@@ -2757,8 +2826,10 @@ static int decon_init_resources(struct decon_device *decon,
 
 	return 0;
 
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 err_ion:
 	iounmap(decon->res.ss_regs);
+#endif
 err:
 	return ret;
 }
@@ -2773,15 +2844,15 @@ static int decon_create_update_thread(struct decon_device *decon, char *name)
 {
 	INIT_LIST_HEAD(&decon->up.list);
 	atomic_set(&decon->up.remaining_frame, 0);
-	init_kthread_worker(&decon->up.worker);
-	decon->up.thread = kthread_run_perf_critical(kthread_worker_fn,
+	kthread_init_worker(&decon->up.worker);
+	decon->up.thread = kthread_run(kthread_worker_fn,
 			&decon->up.worker, name);
 	if (IS_ERR(decon->up.thread)) {
 		decon->up.thread = NULL;
 		decon_err("failed to run update_regs thread\n");
 		return PTR_ERR(decon->up.thread);
 	}
-	init_kthread_work(&decon->up.work, decon_update_regs_handler);
+	kthread_init_work(&decon->up.work, decon_update_regs_handler);
 
 	return 0;
 }

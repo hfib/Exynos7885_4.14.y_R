@@ -121,6 +121,12 @@ config EXYNOS_RGT
 	help
 	  dummy device driver for debugging samsung PMIC
 
+config EXYNOS_WD_DVFS
+	bool "EXYNOS WD DVFS driver support"
+	default n
+	help
+	  Enable exynos wd dvfs support
+
 config SAMSUNG_DMADEV
 	bool
 	select ARM_AMBA

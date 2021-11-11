@@ -75,6 +75,7 @@ struct bts_dpp_info {
 	unsigned int src_w;
 	struct bts_layer_position dst;
 	unsigned int bw;
+	unsigned int idma_type;
 	bool rotation;
 };
 

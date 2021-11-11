@@ -30,6 +30,9 @@
 
 #include "../../drivers/staging/android/uapi/ion.h"
 
+struct ion_handle;
+struct ion_device;
+
 /**
  * struct ion_platform_heap - defines a heap in the given platform
  * @type:	type of the heap from ion_heap_type enum
@@ -53,6 +56,118 @@ struct ion_platform_heap {
 	bool secure;
 	bool untouchable;
 };
+
+/**
+ * struct ion_platform_data - array of platform heaps passed from board file
+ * @nr:		number of structures in the array
+ * @heaps:	array of platform_heap structions
+ *
+ * Provided by the board file in the form of platform data to a platform device.
+ */
+struct ion_platform_data {
+	int nr;
+	struct ion_platform_heap *heaps;
+};
+
+/**
+ * ion_reserve() - reserve memory for ion heaps if applicable
+ * @data:	platform data specifying starting physical address and
+ *		size
+ *
+ * Calls memblock reserve to set aside memory for heaps that are
+ * located at specific memory addresses or of specific sizes not
+ * managed by the kernel
+ */
+void ion_reserve(struct ion_platform_data *data);
+
+/**
+ * ion_client_create() -  allocate a client and returns it
+ * @dev:		the global ion device
+ * @name:		used for debugging
+ */
+struct ion_client *ion_client_create(struct ion_device *dev,
+				     const char *name);
+
+/**
+ * ion_client_create() -  allocate a client and returns it
+ * @name:		used for debugging
+ */
+struct ion_client *exynos_ion_client_create(const char *name);
+
+/**
+ * ion_client_destroy() -  free's a client and all it's handles
+ * @client:	the client
+ *
+ * Free the provided client and all it's resources including
+ * any handles it is holding.
+ */
+void ion_client_destroy(struct ion_client *client);
+
+/**
+ * ion_alloc - allocate ion memory
+ * @client:		the client
+ * @len:		size of the allocation
+ * @align:		requested allocation alignment, lots of hardware blocks
+ *			have alignment requirements of some kind
+ * @heap_id_mask:	mask of heaps to allocate from, if multiple bits are set
+ *			heaps will be tried in order from highest to lowest
+ *			id
+ * @flags:		heap flags, the low 16 bits are consumed by ion, the
+ *			high 16 bits are passed on to the respective heap and
+ *			can be heap custom
+ *
+ * Allocate memory in one of the heaps provided in heap mask and return
+ * an opaque handle to it.
+
+struct ion_handle *ion_alloc( size_t len,
+			     unsigned int heap_id_mask,
+			     unsigned int flags);
+*/
+
+/**
+ * ion_free - free a handle
+ * @client:	the client
+ * @handle:	the handle to free
+ *
+ * Free the provided handle.
+ */
+void ion_free(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_map_kernel - create mapping for the given handle
+ * @client:	the client
+ * @handle:	handle to map
+ *
+ * Map the given handle into the kernel and return a kernel address that
+ * can be used to access this address.
+ */
+void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_share_dma_buf() - share buffer as dma-buf
+ * @client:	the client
+ * @handle:	the handle
+ */
+struct dma_buf *ion_share_dma_buf(struct ion_client *client,
+						struct ion_handle *handle);
+
+/**
+ * ion_share_dma_buf_fd() - given an ion client, create a dma-buf fd
+ * @client:	the client
+ * @handle:	the handle
+ */
+int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle
+ * @client:	the client
+ * @fd:		the dma-buf fd
+ *
+ * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf,
+ * import that fd and return a handle representing it.  If a dma-buf from
+ * another exporter is passed in this function will return ERR_PTR(-EINVAL)
+ */
+struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
 /**
  * struct ion_buffer - metadata for a particular buffer

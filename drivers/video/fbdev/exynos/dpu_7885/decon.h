@@ -28,11 +28,15 @@
 #include <soc/samsung/bts.h>
 #include <soc/samsung/exynos-itmon.h>
 
+#include <linux/exynos-ss.h>
+
 #include "regs-decon.h"
 #include "./panels/decon_lcd.h"
 #include "decon_abd.h"
 #include "dsim.h"
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 #include "../../../../dma-buf/sync_debug.h"
+#endif
 
 #define MAX_DECON_CNT		3
 #define SUCCESS_EXYNOS_SMC	0
@@ -583,12 +587,18 @@ struct decon_window_regs {
 };
 
 struct decon_dma_buf_data {
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	struct ion_handle		*ion_handle;
+#endif
 	struct dma_buf			*dma_buf;
 	struct dma_buf_attachment	*attachment;
 	struct sg_table			*sg_table;
 	dma_addr_t			dma_addr;
-	struct sync_fence		*fence;
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	struct sync_file                *fence;
+#else
+	struct dma_fence		*fence;
+#endif
 };
 
 struct decon_win_rect {
@@ -687,6 +697,9 @@ struct decon_reg_data {
 	struct decon_win_rect block_rect[MAX_DECON_WIN];
 	struct decon_window_regs win_regs[MAX_DECON_WIN];
 	struct decon_dma_buf_data dma_buf_data[MAX_DECON_WIN + 1][MAX_PLANE_CNT];
+#if !defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	struct dma_fence *fence;
+#endif
 
 	/*
 	 * If window update size is changed, that size has to be applied to
@@ -1099,10 +1112,14 @@ struct decon_device {
 	struct mutex pm_lock;
 	spinlock_t slock;
 
+#if defined(CONFIG_SUPPORT_LEGACY_ION)
 	struct ion_client *ion_client;
+#endif
 
-	struct sw_sync_timeline *timeline;
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	struct sync_timeline *timeline;
 	int timeline_max;
+#endif
 
 	struct v4l2_subdev *out_sd[MAX_DSIM_CNT];
 	struct v4l2_subdev *dsim_sd[MAX_DSIM_CNT];
@@ -1465,16 +1482,16 @@ void decon_dump(struct decon_device *decon);
 void decon_to_psr_info(struct decon_device *decon, struct decon_mode_info *psr);
 void decon_to_init_param(struct decon_device *decon, struct decon_param *p);
 void decon_create_timeline(struct decon_device *decon, char *name);
-#if defined(CONFIG_DPU_20)
-void decon_create_release_fences(struct decon_device *decon,
-		struct decon_win_config_data *win_data,
-		struct sync_fence *fence);
-#endif
 int decon_create_fence(struct decon_device *decon,
-		struct sync_fence **fence, struct decon_reg_data *regs);
-void decon_install_fence(struct sync_fence *fence, int fd);
-int decon_wait_fence(struct sync_fence *fence);
+		struct sync_file **fence, struct decon_reg_data *regs);
+void decon_install_fence(struct sync_file *fence, int fd);
+#if defined(CONFIG_SUPPORT_LEGACY_FENCE)
+int decon_wait_fence(struct sync_file *fence);
 void decon_signal_fence(struct decon_device *decon);
+#else
+int decon_wait_fence(struct dma_fence *fence);
+void decon_signal_fence(struct dma_fence *fence);
+#endif
 
 bool decon_intersect(struct decon_rect *r1, struct decon_rect *r2);
 int decon_intersection(struct decon_rect *r1,

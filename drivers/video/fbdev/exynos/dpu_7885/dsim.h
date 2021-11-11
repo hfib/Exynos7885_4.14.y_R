@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <media/v4l2-subdev.h>
 
+#include <linux/exynos-ss.h>
 #include "./panels/decon_lcd.h"
 #include "regs-dsim.h"
 

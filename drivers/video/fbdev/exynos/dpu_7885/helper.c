@@ -349,6 +349,7 @@ int decon_get_valid_fd(void)
 }
 #endif
 /* sync fence related functions */
+/*
 void decon_create_timeline(struct decon_device *decon, char *name)
 {
 	decon->timeline = sw_sync_timeline_create(name);
@@ -462,6 +463,7 @@ void decon_signal_fence(struct decon_device *decon)
 {
 	sw_sync_timeline_inc(decon->timeline, 1);
 }
+*/
 
 void dpu_debug_printk(const char *function_name, const char *format, ...)
 {

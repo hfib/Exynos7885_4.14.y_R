@@ -26,7 +26,7 @@ static inline void dpu_event_log_decon
 	int idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
 	struct dpu_log *log = &decon->d.event_log[idx];
 
-	if (time.tv64)
+	if (time)
 		log->time = time;
 	else
 		log->time = ktime_get();
@@ -63,7 +63,7 @@ static inline void dpu_event_log_dsim
 	int idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
 	struct dpu_log *log = &decon->d.event_log[idx];
 
-	if (time.tv64)
+	if (time)
 		log->time = time;
 	else
 		log->time = ktime_get();
@@ -111,7 +111,7 @@ static inline void dpu_event_log_dpp
 	struct dpu_log *log = &decon->d.event_log[idx];
 	struct dpp_device *dpp = v4l2_get_subdevdata(sd);
 
-	if (time.tv64)
+	if (time)
 		log->time = time;
 	else
 		log->time = ktime_get();

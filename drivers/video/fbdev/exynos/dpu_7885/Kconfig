@@ -92,6 +92,16 @@ config LOGGING_BIGDATA_BUG
 	depends on SEC_DEBUG
 	default n
 
+config SUPPORT_LEGACY_ION
+	bool "Support legacy ION API"
+        depends on EXYNOS_DECON_7885
+        default y
+
+config SUPPORT_LEGACY_FENCE
+	bool "Support legacy fence API"
+        depends on EXYNOS_DECON_7885
+        default y
+
 endif
 
 source "drivers/video/fbdev/exynos/dpu_7885/panels/Kconfig"
