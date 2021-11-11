@@ -73,9 +73,6 @@ ifeq ($(CONFIG_SOC_EXYNOS7870), y)
 endif
 
 ifeq ($(CONFIG_SOC_EXYNOS7885), y)
-  ifeq ($(CONFIG_TEEGRIS_VERSION), 2)
-    use_teegris_v2 := y
-  endif
   ifeq ($(CONFIG_TEEGRIS_VERSION), 3)
     ccflags-$(CONFIG_FIVE_USE_TZDEV) += -I$(srctree)/drivers/misc/tzdev/3.0/include/tzdev
   endif

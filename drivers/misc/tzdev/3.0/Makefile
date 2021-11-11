@@ -20,12 +20,12 @@ obj-$(CONFIG_TZDEV)			+= tzdev.o
 obj-$(CONFIG_TZDEV_KTHREADS_NOTIFIER)	+= tz_kthread_pool_notifier.o
 obj-$(CONFIG_TZDEV_KTHREADS_SMPBOOT)	+= tz_kthread_pool_smpboot.o
 
-ifeq ($(CONFIG_SOC_EXYNOS9820), y)
+ifeq ($(CONFIG_SOC_EXYNOS7885), y)
 obj-$(CONFIG_ION_FD2PHYS)		+= ion_fd2phys_v1.o
-ccflags-y += -DTZDEV_BOOST_CLUSTER_2
+ccflags-y += -DTZDEV_BOOST_CLUSTER_1
 else
 obj-$(CONFIG_ION_FD2PHYS)		+= ion_fd2phys.o
-ccflags-y += -DTZDEV_BOOST_CLUSTER_1
+ccflags-y += -DTZDEV_BOOST_CLUSTER_2
 endif
 obj-$(CONFIG_MSM_SCM)			+= tz_msm_platform.o
 obj-$(CONFIG_TZDEV_BOOST)		+= tz_boost.o

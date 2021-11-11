@@ -549,6 +549,7 @@ source "drivers/misc/mcu_ipc/Kconfig"
 source "drivers/misc/modem_v1/Kconfig"
 source "drivers/misc/gnss_if/Kconfig"
 source "drivers/misc/tzdev/Kconfig"
+source "drivers/misc/tzdev/3.0/Kconfig"
 source "drivers/misc/samsung/Kconfig"
 source "drivers/misc/tui/Kconfig"
 endmenu

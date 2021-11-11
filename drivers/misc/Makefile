@@ -66,8 +66,14 @@ obj-$(CONFIG_GNSS_SHMEM_IF)     += gnss_if/
 obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
 
 # TEEGRIS kernel driver
+ifneq ($(CONFIG_TEEGRIS_VERSION),2)
+ccflags-$(CONFIG_TZDEV) += -I$(srctree)/drivers/misc/tzdev/$(CONFIG_TEEGRIS_VERSION).0/include
+obj-$(CONFIG_TZDEV)	+= tzdev/$(CONFIG_TEEGRIS_VERSION).0/
+else
 ccflags-$(CONFIG_TZDEV) += -I$(srctree)/drivers/misc/tzdev/include
 obj-$(CONFIG_TZDEV)		+= tzdev/
+endif
+
 obj-$(CONFIG_SAMSUNG_TUI)       += tui/
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o

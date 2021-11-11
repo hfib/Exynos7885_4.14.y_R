@@ -157,7 +157,11 @@ obj-$(CONFIG_SCSI_OSD_INITIATOR) += osd/
 obj-$(CONFIG_SCSI_HISI_SAS) += hisi_sas/
 
 ifeq ($(CONFIG_TZDEV),y)
+ifneq ($(CONFIG_TEEGRIS_VERSION),2)
+subdir-ccflags-y += -I$(srctree)/drivers/misc/tzdev/$(CONFIG_TEEGRIS_VERSION).0
+else
 subdir-ccflags-y += -I$(srctree)/drivers/misc/tzdev
+endif
 obj-$(CONFIG_UFS_SRPMB)        += scsi_srpmb-teegris.o
 else
 obj-$(CONFIG_UFS_SRPMB)        += scsi_srpmb.o

@@ -11,14 +11,10 @@ ccflags-$(CONFIG_ICD) += -I$(srctree)/security/samsung/five
 EXTRA_CFLAGS += -I$(src)
 obj-$(CONFIG_ICD_USE_QSEECOM) += qsee_oemflag.o
 obj-$(CONFIG_ICD_USE_TZDEV) += tzdev_oemflag.o
-ifneq ($(CONFIG_SOC_EXYNOS7885),)
-  ifeq ($(CONFIG_TEEGRIS_VERSION), 3)
+ifeq ($(CONFIG_TEEGRIS_VERSION), 3)
     ccflags-$(CONFIG_ICD_USE_TZDEV) += -I$(srctree)/drivers/misc/tzdev/3.0
-  else
-    ccflags-$(CONFIG_ICD_USE_TZDEV) += -I$(srctree)/drivers/misc/tzdev
-  endif
 else
-ccflags-$(CONFIG_ICD_USE_TZDEV) += -I$(srctree)/drivers/misc/tzdev
+    ccflags-$(CONFIG_ICD_USE_TZDEV) += -I$(srctree)/drivers/misc/tzdev
 endif
 
 ifeq ($(MTK_PLATFORM), mt6768)

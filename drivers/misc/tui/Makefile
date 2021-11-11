@@ -7,10 +7,8 @@ obj-$(CONFIG_SAMSUNG_TUI)	+= stui_core.o
 obj-$(CONFIG_SAMSUNG_TUI)	+= stui_inf.o
 
 ifeq ($(CONFIG_SOC_EXYNOS7885),y)
-ifneq ($(CONFIG_TEEGRIS_VERSION),2)
 ccflags-$(CONFIG_SAMSUNG_TUI)	+= -DUSE_TEE_CLIENT_API
 ccflags-$(CONFIG_SAMSUNG_TUI)	+= -Idrivers/misc/tzdev/$(CONFIG_TEEGRIS_VERSION).0/include/tzdev
-endif
 obj-$(CONFIG_SAMSUNG_TUI)	+= platforms/exynos7885/
 endif
 
