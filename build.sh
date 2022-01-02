@@ -54,7 +54,6 @@ variant(){
     pause 'continue'
   else
     pause 'return to Main menu' 'Invalid option, '
-    . $DIR/build_menu
   fi
 }
 
@@ -62,7 +61,6 @@ toolchain(){
   if [ ! -d $PARENT_DIR/aarch64-linux-android-4.9 ]; then
     pause 'clone Toolchain aarch64-linux-android-4.9 cross compiler'
     git clone --branch android-9.0.0_r59 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 $PARENT_DIR/aarch64-linux-android-4.9
-    . $DIR/build_menu
   fi
 }
 
@@ -70,7 +68,6 @@ clang(){
   if [ ! -d $PARENT_DIR/clang-4639204 ]; then
     pause 'clone Android Clang/LLVM Prebuilts'
     git clone https://github.com/mohammad92/prebuilts_clang_host_linux-x86_clang-4639204 $PARENT_DIR/clang-4639204
-    . $DIR/build_menu
   fi
 }
 
